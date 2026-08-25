@@ -433,15 +433,46 @@ function Features.CollectLuckyBlocksStep()
             end
         end
 
-        -- Check Mutation
-        local mutationMatch = (selectedMutation == "All")
-        if not mutationMatch then
+        -- Check Mutation with Multi-Select Support
+        local blockMutationLower = string.lower(blockMutation)
+        local mutationMatch = false
+        if not selectedMutation or selectedMutation == "All" then
+            mutationMatch = true
+        elseif typeof(selectedMutation) == "string" then
             local selMutLower = string.lower(selectedMutation)
-            local blkMutLower = string.lower(blockMutation)
             if selMutLower == "gold" or selMutLower == "golden" then
-                mutationMatch = (blkMutLower == "gold" or blkMutLower == "golden")
+                mutationMatch = (blockMutationLower == "gold" or blockMutationLower == "golden")
             else
-                mutationMatch = (selMutLower == blkMutLower)
+                mutationMatch = (selMutLower == blockMutationLower)
+            end
+        elseif typeof(selectedMutation) == "table" then
+            if selectedMutation["All"] or table.find(selectedMutation, "All") then
+                mutationMatch = true
+            else
+                for _, m in ipairs(selectedMutation) do
+                    local mLower = string.lower(tostring(m))
+                    if (mLower == "gold" or mLower == "golden") and (blockMutationLower == "gold" or blockMutationLower == "golden") then
+                        mutationMatch = true
+                        break
+                    elseif mLower == blockMutationLower then
+                        mutationMatch = true
+                        break
+                    end
+                end
+                if not mutationMatch then
+                    for k, v in pairs(selectedMutation) do
+                        if v == true then
+                            local kLower = string.lower(tostring(k))
+                            if (kLower == "gold" or kLower == "golden") and (blockMutationLower == "gold" or blockMutationLower == "golden") then
+                                mutationMatch = true
+                                break
+                            elseif kLower == blockMutationLower then
+                                mutationMatch = true
+                                break
+                            end
+                        end
+                    end
+                end
             end
         end
 

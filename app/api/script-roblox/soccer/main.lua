@@ -162,7 +162,7 @@ local success, err = pcall(function()
 			"Rare",
 			"Common"
 		}
-		UI.AddMultiDropdown(lbSec, "Filter Rarity (Multi-Select)", rarityOptions, Config.Farm.FilterRarity or { "All" }, function(optList, optMap)
+		UI.AddMultiDropdown(lbSec, "Filter Rarity", rarityOptions, Config.Farm.FilterRarity or { "All" }, function(optList, optMap)
 			Features.State.FilterRarity = optList
 			Config.Farm.FilterRarity = optList
 			if Config.Settings.autoSave then saveConfig() end
@@ -175,11 +175,16 @@ local success, err = pcall(function()
 		end, 2)
 
 		local mutationOptions = { "All", "None", "Gold", "Rainbow", "Volcanic", "Diamond", "Shiny", "Cursed", "Neon", "Ghost" }
-		UI.AddDropdown(lbSec, "Filter Mutation", mutationOptions, Config.Farm.FilterMutation or "All", function(opt)
-			Features.State.FilterMutation = opt
-			Config.Farm.FilterMutation = opt
+		UI.AddMultiDropdown(lbSec, "Filter Mutation", mutationOptions, Config.Farm.FilterMutation or { "All" }, function(optList, optMap)
+			Features.State.FilterMutation = optList
+			Config.Farm.FilterMutation = optList
 			if Config.Settings.autoSave then saveConfig() end
-			UI.Notify("Mutation Filter", "Target: " .. opt, 2, "success")
+			local count = #optList
+			if optMap["All"] then
+				UI.Notify("Mutation Filter", "Target: All Mutations", 2, "success")
+			else
+				UI.Notify("Mutation Filter", "Selected " .. tostring(count) .. " Mutations", 2, "success")
+			end
 		end, 3)
 
 		UI.AddToggle(lbSec, "Auto Place & Open Lucky Block", Config.Farm.AutoPlaceOpenLuckyBlock or false, function(v)
@@ -247,7 +252,7 @@ local success, err = pcall(function()
 	------------------------------------------------
 	-- 🏃 TAB 2: MOVEMENT & VISUALS (ESP)
 	------------------------------------------------
-	local moveTabFrame = UI.AddTab("Visuals", "👁️", 2)
+	local moveTabFrame = (UI.tabs["Visuals"] and UI.tabs["Visuals"].Frame) or UI.AddTab("Visuals", "👁️", 2)
 	if moveTabFrame then
 		-- Section 1: Movement & Speed
 		local moveSec = UI.AddSection(moveTabFrame, "🏃 Movement & Character Speed", 1)
