@@ -174,6 +174,94 @@ function Features.ResolveMutation(model)
 end
 
 -- ------------------------------------------------------------------------------
+-- Helper: Find Next Available Empty Stand Slot on Plot
+-- ------------------------------------------------------------------------------
+function Features.FindEmptyStandSlot()
+    local myPlot = Features.GetMyPlot()
+    if not myPlot or not myPlot:FindFirstChild("Stands") then return nil end
+    local playerSlimes = Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("PlayerSlimes")
+    local mySlimesFolder = playerSlimes and playerSlimes:FindFirstChild(LocalPlayer.Name)
+
+    for i = 1, #myPlot.Stands:GetChildren() do
+        local slotName = tostring(i)
+        local occupied = mySlimesFolder and mySlimesFolder:FindFirstChild(slotName)
+        if not occupied then
+            return slotName
+        end
+    end
+    return nil
+end
+
+-- ------------------------------------------------------------------------------
+-- Helper: Deposit & Open All Carried Lucky Blocks onto Empty Stands
+-- ------------------------------------------------------------------------------
+function Features.DepositAndOpenCarriedLuckyBlocks()
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChild("Humanoid")
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not hum or not backpack then return end
+
+    local myPlot = Features.GetMyPlot()
+    local plotPos = Features.GetPlotPosition(myPlot)
+    local root = char:FindFirstChild("HumanoidRootPart")
+
+    -- Bring player to base plot
+    if plotPos and root and (root.Position - plotPos).Magnitude > 25 then
+        root.CFrame = CFrame.new(plotPos + Vector3.new(0, 3, 0))
+        task.wait(0.25)
+    end
+
+    local maxAttempts = 20
+    local attempts = 0
+
+    while attempts < maxAttempts do
+        attempts = attempts + 1
+
+        -- Find next lucky block tool
+        local lbTool = nil
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and (tool:GetAttribute("slimeUID") ~= nil or tool.Name:lower():find("lucky block")) then
+                lbTool = tool
+                break
+            end
+        end
+        if not lbTool and char then
+            for _, tool in ipairs(char:GetChildren()) do
+                if tool:IsA("Tool") and (tool:GetAttribute("slimeUID") ~= nil or tool.Name:lower():find("lucky block")) then
+                    lbTool = tool
+                    break
+                end
+            end
+        end
+
+        if not lbTool then
+            -- All lucky blocks deposited and opened!
+            break
+        end
+
+        local emptySlot = Features.FindEmptyStandSlot()
+        if not emptySlot then
+            -- All stands on plot are full!
+            if Features.State.AutoSellBackpack then
+                Features.SellFromBackpackStep()
+                task.wait(0.3)
+            end
+            break
+        end
+
+        local uid = lbTool:GetAttribute("slimeUID")
+        if lbTool.Parent == backpack then
+            hum:EquipTool(lbTool)
+            task.wait(0.12)
+        end
+        PlaceSlimeRemote:FireServer(emptySlot, uid)
+        task.wait(0.18)
+        OpenLuckyBlockRemote:FireServer(emptySlot)
+        task.wait(0.25)
+    end
+end
+
+-- ------------------------------------------------------------------------------
 -- Feature 1: Auto Collect Lucky Block (With Carry Limit Check & Rarity/Mutation Filters)
 -- ------------------------------------------------------------------------------
 local isCollectingLB = false
@@ -186,17 +274,14 @@ function Features.CollectLuckyBlocksStep()
     local currentCarried = Features.GetCarriedCount()
     local maxCarry = Features.GetMaxCarryLimit()
 
-    -- Check if carry limit is already reached
+    -- Check if carry limit is already reached: deposit lucky blocks on base so we can collect again!
     if currentCarried >= maxCarry then
-        -- Return to home base plot when full
-        local myPlot = Features.GetMyPlot()
-        local plotPos = Features.GetPlotPosition(myPlot)
-        if plotPos and root then
-            local basePos = plotPos + Vector3.new(0, 3, 0)
-            if (root.Position - basePos).Magnitude > 15 then
-                root.CFrame = CFrame.new(basePos)
-            end
-        end
+        isCollectingLB = true
+        task.spawn(function()
+            Features.DepositAndOpenCarriedLuckyBlocks()
+            task.wait(0.3)
+            isCollectingLB = false
+        end)
         return
     end
 
@@ -277,10 +362,10 @@ function Features.CollectLuckyBlocksStep()
             end)
             task.wait(0.15)
             
-            -- If carry limit is reached after pickup, return to home base plot
+            -- If carry limit is reached after pickup, return to home base and deposit/open!
             local updatedCarried = Features.GetCarriedCount()
-            if updatedCarried >= maxCarry and returnPos and root and root.Parent then
-                root.CFrame = CFrame.new(returnPos)
+            if updatedCarried >= maxCarry then
+                Features.DepositAndOpenCarriedLuckyBlocks()
             elseif returnPos and root and root.Parent then
                 root.CFrame = CFrame.new(returnPos)
             end
@@ -310,67 +395,7 @@ end
 -- Feature 3: Auto Place & Open Lucky Block
 -- ------------------------------------------------------------------------------
 function Features.PlaceAndOpenLuckyBlockStep()
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChild("Humanoid")
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if not hum or not backpack then return end
-
-    local myPlot = Features.GetMyPlot()
-    if not myPlot or not myPlot:FindFirstChild("Stands") then return end
-
-    -- Find a Lucky Block tool in backpack or character
-    local lbTool = nil
-    for _, tool in ipairs(backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool:GetAttribute("slimeUID") then
-            local sId = tool:GetAttribute("slimeID")
-            local info = sId and Database.Slimes[sId]
-            if info and info.Type == "Lucky Block" or tool.Name:lower():find("lucky block") then
-                lbTool = tool
-                break
-            end
-        end
-    end
-
-    if not lbTool and char then
-        local equipped = char:FindFirstChildWhichIsA("Tool")
-        if equipped and equipped:GetAttribute("slimeUID") then
-            local sId = equipped:GetAttribute("slimeID")
-            local info = sId and Database.Slimes[sId]
-            if info and info.Type == "Lucky Block" or equipped.Name:lower():find("lucky block") then
-                lbTool = equipped
-            end
-        end
-    end
-
-    if not lbTool then return end
-
-    -- Find an empty stand slot
-    local playerSlimes = Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("PlayerSlimes")
-    local mySlimesFolder = playerSlimes and playerSlimes:FindFirstChild(LocalPlayer.Name)
-
-    local emptySlot = nil
-    for i = 1, 100 do
-        local slotName = tostring(i)
-        local standObj = myPlot.Stands:FindFirstChild(slotName)
-        if standObj then
-            local occupied = mySlimesFolder and mySlimesFolder:FindFirstChild(slotName)
-            if not occupied then
-                emptySlot = slotName
-                break
-            end
-        end
-    end
-
-    if emptySlot and lbTool then
-        local uid = lbTool:GetAttribute("slimeUID")
-        if lbTool.Parent == backpack then
-            hum:EquipTool(lbTool)
-            task.wait(0.1)
-        end
-        PlaceSlimeRemote:FireServer(emptySlot, uid)
-        task.wait(0.2)
-        OpenLuckyBlockRemote:FireServer(emptySlot)
-    end
+    Features.DepositAndOpenCarriedLuckyBlocks()
 end
 
 -- ------------------------------------------------------------------------------
