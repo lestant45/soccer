@@ -519,16 +519,35 @@ function Features.CollectLuckyBlocksStep()
         local returnPos = plotPos and (plotPos + Vector3.new(0, 3, 0)) or (root and root.Position)
 
         if target and target.prompt and target.prompt.Parent and root and root.Parent then
-            -- Teleport to lucky block
-            root.CFrame = target.part.CFrame + Vector3.new(0, 2, 0)
-            task.wait(0.12)
+            local initialCount = Features.GetBackpackCount()
+            local promptHold = target.prompt.HoldDuration or 0.5
+
+            -- Teleport stably to lucky block and freeze physics velocity
+            root.CFrame = target.part.CFrame + Vector3.new(0, 1.2, 0)
             pcall(function()
-                if fireproximityprompt then
-                    fireproximityprompt(target.prompt, 0)
-                end
+                root.AssemblyLinearVelocity = Vector3.zero
+                root.AssemblyAngularVelocity = Vector3.zero
             end)
-            task.wait(0.15)
-            
+            task.wait(0.06)
+
+            -- Actively trigger prompt until block is collected or short timeout
+            local timeout = os.clock() + math.max(promptHold + 0.25, 0.6)
+            while os.clock() < timeout and target.prompt and target.prompt.Parent and root and root.Parent do
+                if Features.GetBackpackCount() > initialCount then
+                    break
+                end
+                pcall(function()
+                    if fireproximityprompt then
+                        fireproximityprompt(target.prompt, promptHold)
+                        fireproximityprompt(target.prompt, 0)
+                        fireproximityprompt(target.prompt)
+                    end
+                end)
+                task.wait(0.08)
+            end
+
+            task.wait(0.06)
+
             -- If AutoPlaceOpenLuckyBlock is enabled, deposit to empty stands
             if Features.State.AutoPlaceOpenLuckyBlock then
                 Features.DepositAndOpenCarriedLuckyBlocks()
@@ -536,7 +555,7 @@ function Features.CollectLuckyBlocksStep()
                 root.CFrame = CFrame.new(returnPos)
             end
         end
-        task.wait(0.3)
+        task.wait(0.2)
         isCollectingLB = false
     end)
 end
