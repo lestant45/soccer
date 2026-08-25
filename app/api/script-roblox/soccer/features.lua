@@ -174,7 +174,65 @@ function Features.ResolveMutation(model)
 end
 
 -- ------------------------------------------------------------------------------
--- Helper: Find Next Available Empty Stand Slot on Plot
+-- Helper: Check if Stand Slot is Bought / Unlocked
+-- ------------------------------------------------------------------------------
+function Features.IsStandBought(stand, index)
+    if not stand then return false end
+
+    -- Check direct attributes
+    local isBoughtAttr = stand:GetAttribute("Bought")
+    if isBoughtAttr ~= nil then return isBoughtAttr == true end
+    local isUnlockedAttr = stand:GetAttribute("Unlocked")
+    if isUnlockedAttr ~= nil then return isUnlockedAttr == true end
+    local isOwnedAttr = stand:GetAttribute("Owned")
+    if isOwnedAttr ~= nil then return isOwnedAttr == true end
+    if stand:GetAttribute("Locked") == true then return false end
+
+    -- Check if it contains a buy prompt or buy pad
+    local buyPrompt = stand:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if buyPrompt and (buyPrompt.ActionText:lower():find("buy") or buyPrompt.ObjectText:lower():find("buy") or buyPrompt.Name:lower():find("buy")) then
+        return false
+    end
+    if stand:FindFirstChild("BuyPad") or stand:FindFirstChild("BuyPart") or stand:FindFirstChild("PurchasePad") or stand:FindFirstChild("Locked") or stand:FindFirstChild("BuyPrompt") then
+        return false
+    end
+
+    -- Check price display GUI
+    for _, gui in ipairs(stand:GetDescendants()) do
+        if gui:IsA("BillboardGui") or gui:IsA("SurfaceGui") then
+            local n = gui.Name:lower()
+            if n:find("buy") or n:find("price") or n:find("cost") or n:find("purchase") or n:find("unlock") then
+                return false
+            end
+        end
+    end
+
+    -- Check player runtime data
+    local data = Features.GetPlayerData()
+    if data then
+        if typeof(data.Stands) == "number" and index > data.Stands then
+            return false
+        elseif typeof(data.Stands) == "table" then
+            if data.Stands[tostring(index)] == nil and data.Stands[index] == nil and #data.Stands > 0 and index > #data.Stands then
+                return false
+            end
+        end
+        if typeof(data.UnlockedStands) == "number" and index > data.UnlockedStands then
+            return false
+        end
+        if typeof(data.MaxStands) == "number" and index > data.MaxStands then
+            return false
+        end
+        if typeof(data.OwnedStands) == "number" and index > data.OwnedStands then
+            return false
+        end
+    end
+
+    return true
+end
+
+-- ------------------------------------------------------------------------------
+-- Helper: Find Next Available Empty Bought Stand Slot on Plot
 -- ------------------------------------------------------------------------------
 function Features.FindEmptyStandSlot()
     local myPlot = Features.GetMyPlot()
@@ -182,18 +240,27 @@ function Features.FindEmptyStandSlot()
     local playerSlimes = Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("PlayerSlimes")
     local mySlimesFolder = playerSlimes and playerSlimes:FindFirstChild(LocalPlayer.Name)
 
-    for i = 1, #myPlot.Stands:GetChildren() do
+    local standsFolder = myPlot.Stands
+    local children = standsFolder:GetChildren()
+
+    for i = 1, #children do
         local slotName = tostring(i)
-        local occupied = mySlimesFolder and mySlimesFolder:FindFirstChild(slotName)
-        if not occupied then
-            return slotName
+        local standObj = standsFolder:FindFirstChild(slotName) or children[i]
+        local actualIndex = tonumber(standObj and standObj.Name) or i
+        local targetSlotName = tostring(actualIndex)
+
+        if Features.IsStandBought(standObj, actualIndex) then
+            local occupied = mySlimesFolder and (mySlimesFolder:FindFirstChild(targetSlotName) or mySlimesFolder:FindFirstChild(slotName))
+            if not occupied then
+                return targetSlotName
+            end
         end
     end
     return nil
 end
 
 -- ------------------------------------------------------------------------------
--- Helper: Deposit & Open All Carried Lucky Blocks onto Empty Stands
+-- Helper: Deposit & Open All Carried Lucky Blocks onto Empty Bought Stands
 -- ------------------------------------------------------------------------------
 function Features.DepositAndOpenCarriedLuckyBlocks()
     local char = LocalPlayer.Character
@@ -204,12 +271,6 @@ function Features.DepositAndOpenCarriedLuckyBlocks()
     local myPlot = Features.GetMyPlot()
     local plotPos = Features.GetPlotPosition(myPlot)
     local root = char:FindFirstChild("HumanoidRootPart")
-
-    -- Bring player to base plot
-    if plotPos and root and (root.Position - plotPos).Magnitude > 25 then
-        root.CFrame = CFrame.new(plotPos + Vector3.new(0, 3, 0))
-        task.wait(0.25)
-    end
 
     local maxAttempts = 20
     local attempts = 0
@@ -241,12 +302,18 @@ function Features.DepositAndOpenCarriedLuckyBlocks()
 
         local emptySlot = Features.FindEmptyStandSlot()
         if not emptySlot then
-            -- All stands on plot are full!
+            -- No empty bought stands available on plot!
             if Features.State.AutoSellBackpack then
                 Features.SellFromBackpackStep()
                 task.wait(0.3)
             end
             break
+        end
+
+        -- Bring player to base plot before placing
+        if plotPos and root and (root.Position - plotPos).Magnitude > 25 then
+            root.CFrame = CFrame.new(plotPos + Vector3.new(0, 3, 0))
+            task.wait(0.25)
         end
 
         local uid = lbTool:GetAttribute("slimeUID")
@@ -274,14 +341,16 @@ function Features.CollectLuckyBlocksStep()
     local currentCarried = Features.GetCarriedCount()
     local maxCarry = Features.GetMaxCarryLimit()
 
-    -- Check if carry limit is already reached: deposit lucky blocks on base so we can collect again!
+    -- Check if carry limit is already reached
     if currentCarried >= maxCarry then
-        isCollectingLB = true
-        task.spawn(function()
-            Features.DepositAndOpenCarriedLuckyBlocks()
-            task.wait(0.3)
-            isCollectingLB = false
-        end)
+        if Features.State.AutoPlaceOpenLuckyBlock then
+            isCollectingLB = true
+            task.spawn(function()
+                Features.DepositAndOpenCarriedLuckyBlocks()
+                task.wait(0.3)
+                isCollectingLB = false
+            end)
+        end
         return
     end
 
@@ -295,8 +364,16 @@ function Features.CollectLuckyBlocksStep()
         local blockRarity = Features.ResolveBlockRarity(block)
         local blockMutation = Features.ResolveMutation(block)
 
-        -- Check Rarity
-        local rarityMatch = (selectedRarity == "All") or (string.lower(selectedRarity) == string.lower(blockRarity))
+        -- Check Rarity (support Soccer God and Slime God interchangeably)
+        local rarityMatch = false
+        if selectedRarity == "All" then
+            rarityMatch = true
+        elseif selectedRarity == "Soccer God" or selectedRarity == "Slime God" then
+            local blkLower = string.lower(blockRarity)
+            rarityMatch = (blkLower == "soccer god" or blkLower == "slime god")
+        else
+            rarityMatch = (string.lower(selectedRarity) == string.lower(blockRarity))
+        end
 
         -- Check Mutation
         local mutationMatch = (selectedMutation == "All")
@@ -362,9 +439,9 @@ function Features.CollectLuckyBlocksStep()
             end)
             task.wait(0.15)
             
-            -- If carry limit is reached after pickup, return to home base and deposit/open!
+            -- Only deposit/open if AutoPlaceOpenLuckyBlock toggle is enabled
             local updatedCarried = Features.GetCarriedCount()
-            if updatedCarried >= maxCarry then
+            if updatedCarried >= maxCarry and Features.State.AutoPlaceOpenLuckyBlock then
                 Features.DepositAndOpenCarriedLuckyBlocks()
             elseif returnPos and root and root.Parent then
                 root.CFrame = CFrame.new(returnPos)

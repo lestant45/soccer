@@ -144,7 +144,7 @@ local success, err = pcall(function()
 			if v then UI.Notify("Auto Collect", "Collecting Lucky Blocks (respects carry limit)...", 2, "success") end
 		end, 1)
 
-		local rarityOptions = { "All", "Slime God", "Secret", "Mythic", "Legendary", "Champions", "Spain", "OG", "Epic", "Rare", "Common", "Exclusive", "LIMITED", "Icons", "Japan" }
+		local rarityOptions = { "All", "Soccer God", "Secret", "Mythic", "Legendary", "Champions", "Spain", "OG", "Epic", "Rare", "Common", "Exclusive", "LIMITED", "Icons", "Japan" }
 		UI.AddDropdown(lbSec, "Filter Rarity", rarityOptions, Config.Farm.FilterRarity or "All", function(opt)
 			Features.State.FilterRarity = opt
 			Config.Farm.FilterRarity = opt
