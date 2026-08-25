@@ -15,6 +15,22 @@ local success, err = pcall(function()
 	if not Features then
 		Features = { State = {} }
 	end
+
+	-- Sync state from config
+	if Config.Farm then
+		for k, v in pairs(Config.Farm) do
+			Features.State[k] = v
+		end
+	end
+	if Config.Movement and Config.Movement.MoveSpeedMultiplier then
+		Features.State.MoveSpeedMultiplier = Config.Movement.MoveSpeedMultiplier
+	end
+	if Config.Visuals then
+		for k, v in pairs(Config.Visuals) do
+			Features.State[k] = v
+		end
+	end
+
 	if Features.Init and not _G.HipHubFeaturesInitialized then
 		Features.Init()
 		_G.HipHubFeaturesInitialized = true
@@ -125,15 +141,31 @@ local success, err = pcall(function()
 			Features.State.AutoCollectLuckyBlock = v
 			Config.Farm.AutoCollectLuckyBlock = v
 			if Config.Settings.autoSave then saveConfig() end
-			if v then UI.Notify("Auto Collect", "Collecting Lucky Blocks across the map...", 2, "success") end
+			if v then UI.Notify("Auto Collect", "Collecting Lucky Blocks (respects carry limit)...", 2, "success") end
 		end, 1)
+
+		local rarityOptions = { "All", "Slime God", "Secret", "Mythic", "Legendary", "Champions", "Spain", "OG", "Epic", "Rare", "Common", "Exclusive", "LIMITED", "Icons", "Japan" }
+		UI.AddDropdown(lbSec, "Filter Rarity", rarityOptions, Config.Farm.FilterRarity or "All", function(opt)
+			Features.State.FilterRarity = opt
+			Config.Farm.FilterRarity = opt
+			if Config.Settings.autoSave then saveConfig() end
+			UI.Notify("Rarity Filter", "Target: " .. opt, 2, "success")
+		end, 2)
+
+		local mutationOptions = { "All", "None", "Gold", "Rainbow", "Volcanic", "Diamond", "Shiny", "Cursed", "Neon", "Ghost" }
+		UI.AddDropdown(lbSec, "Filter Mutation", mutationOptions, Config.Farm.FilterMutation or "All", function(opt)
+			Features.State.FilterMutation = opt
+			Config.Farm.FilterMutation = opt
+			if Config.Settings.autoSave then saveConfig() end
+			UI.Notify("Mutation Filter", "Target: " .. opt, 2, "success")
+		end, 3)
 
 		UI.AddToggle(lbSec, "Auto Place & Open Lucky Block", Config.Farm.AutoPlaceOpenLuckyBlock or false, function(v)
 			Features.State.AutoPlaceOpenLuckyBlock = v
 			Config.Farm.AutoPlaceOpenLuckyBlock = v
 			if Config.Settings.autoSave then saveConfig() end
 			if v then UI.Notify("Auto Place & Open", "Placing & Opening Lucky Blocks on stands...", 2, "success") end
-		end, 2)
+		end, 4)
 
 		-- Section 2: Economy & Income
 		local econSec = UI.AddSection(mainTabFrame, "💰 Economy & Collection", 2)
@@ -239,7 +271,8 @@ local success, err = pcall(function()
 		local cashLabel = UI.AddLabel(liveSec, "Cash: $0", 1)
 		local jumpLabel = UI.AddLabel(liveSec, "Jump: 0", 2)
 		local rebLabel = UI.AddLabel(liveSec, "Rebirth: 0", 3)
-		local plotLabel = UI.AddLabel(liveSec, "Plot: Searching...", 4)
+		local carryLabel = UI.AddLabel(liveSec, "Carrying: 0 / 3", 4)
+		local plotLabel = UI.AddLabel(liveSec, "Plot: Searching...", 5)
 
 		-- Live ticker
 		task.spawn(function()
@@ -251,10 +284,14 @@ local success, err = pcall(function()
 					local jumpVal = data and data.Jump or (leaderstats and leaderstats:FindFirstChild("Jump") and leaderstats.Jump.Value or "0")
 					local rebVal = data and data.Rebirth or (leaderstats and leaderstats:FindFirstChild("Rebirth") and leaderstats.Rebirth.Value or "0")
 					local myPlot = Features.GetMyPlot()
+					local carried = Features.GetCarriedCount()
+					local maxCarry = Features.GetMaxCarryLimit()
 
 					cashLabel.Text = "Cash: $" .. tostring(cashVal)
 					jumpLabel.Text = "Jump: " .. tostring(jumpVal)
 					rebLabel.Text = "Rebirth: " .. tostring(rebVal)
+					carryLabel.Text = "Carrying: " .. tostring(carried) .. " / " .. tostring(maxCarry) .. (carried >= maxCarry and " (FULL - Safe Base)" or "")
+					carryLabel.TextColor3 = carried >= maxCarry and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(225, 235, 255)
 					plotLabel.Text = "Plot: " .. (myPlot and myPlot.Name or "Unknown")
 				end)
 				task.wait(1.5)

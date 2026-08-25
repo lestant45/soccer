@@ -25,6 +25,8 @@ local success, err = pcall(function()
 		},
 		Farm = {
 			AutoCollectLuckyBlock = false,
+			FilterRarity = "All",
+			FilterMutation = "All",
 			AutoCollectEarnings = false,
 			AutoPlaceOpenLuckyBlock = false,
 			AutoPickupAllPlayers = false,

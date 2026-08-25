@@ -13,6 +13,8 @@ local Camera = Workspace.CurrentCamera
 local Features = {}
 Features.State = {
     AutoCollectLuckyBlock = false,
+    FilterRarity = "All",
+    FilterMutation = "All",
     AutoCollectEarnings = false,
     AutoPlaceOpenLuckyBlock = false,
     AutoPickupAllPlayers = false,
@@ -64,8 +66,23 @@ function Features.GetMyPlot()
             return plot
         end
     end
-    -- Fallback default plot check
     if _G.MyPlot then return _G.MyPlot end
+    return nil
+end
+
+function Features.GetPlotPosition(plot)
+    if not plot then return nil end
+    if plot:IsA("Model") and plot.PrimaryPart then
+        return plot.PrimaryPart.Position
+    end
+    if plot:IsA("Model") then
+        local ok, cf = pcall(function() return plot:GetPivot() end)
+        if ok and cf then return cf.Position end
+    end
+    local base = plot:FindFirstChild("Base") or plot:FindFirstChildWhichIsA("BasePart", true)
+    if base then
+        return base.Position
+    end
     return nil
 end
 
@@ -74,7 +91,7 @@ end
 -- ------------------------------------------------------------------------------
 function Features.GetPlayerData()
     local ok, clientRuntime = pcall(function()
-        return require(LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("ClientRuntime"))
+        return require(LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("ClientRuntime")):AwaitReady()
     end)
     if ok and clientRuntime and clientRuntime.PlayerState then
         return clientRuntime.PlayerState:Get()
@@ -86,7 +103,78 @@ function Features.GetPlayerData()
 end
 
 -- ------------------------------------------------------------------------------
--- Feature 1: Auto Collect Lucky Block
+-- Helper: Get Current Carried Items & Max Limit
+-- ------------------------------------------------------------------------------
+function Features.GetCarriedCount()
+    local count = 0
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item:IsA("Tool") and (item:GetAttribute("slimeUID") ~= nil or item:GetAttribute("slimeID") ~= nil or item.Name:lower():find("lucky block")) then
+                count = count + 1
+            end
+        end
+    end
+    local char = LocalPlayer.Character
+    if char then
+        for _, item in ipairs(char:GetChildren()) do
+            if item:IsA("Tool") and (item:GetAttribute("slimeUID") ~= nil or item:GetAttribute("slimeID") ~= nil or item.Name:lower():find("lucky block")) then
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
+function Features.GetMaxCarryLimit()
+    local data = Features.GetPlayerData()
+    if data and data.CarryLevel then
+        return tonumber(data.CarryLevel) or 3
+    end
+    return 3
+end
+
+-- ------------------------------------------------------------------------------
+-- Helper: Resolve Lucky Block Rarity and Mutation
+-- ------------------------------------------------------------------------------
+function Features.ResolveBlockRarity(block)
+    local sId = block:GetAttribute("SlimeId")
+    if sId and Database.Slimes[tostring(sId)] then
+        return Database.Slimes[tostring(sId)].Rarity or "Common"
+    end
+    for name, slime in pairs(Database.Slimes) do
+        if block.Name:find(slime.Name) or slime.Name:find(block.Name) then
+            return slime.Rarity or "Common"
+        end
+    end
+    return "Common"
+end
+
+function Features.ResolveMutation(model)
+    local mut = model:GetAttribute("Mutation") or model:GetAttribute("mutation") or model:GetAttribute("Variant")
+    if mut and mut ~= "" and mut ~= "Default" then
+        return tostring(mut)
+    end
+    if model:FindFirstChild("RainbowEffect") or model.Name:lower():find("rainbow") then
+        return "Rainbow"
+    end
+    if model.Name:lower():find("gold") then
+        return "Gold"
+    end
+    if model.Name:lower():find("volcanic") then
+        return "Volcanic"
+    end
+    if model.Name:lower():find("cursed") then
+        return "Cursed"
+    end
+    if model.Name:lower():find("ghost") then
+        return "Ghost"
+    end
+    return "None"
+end
+
+-- ------------------------------------------------------------------------------
+-- Feature 1: Auto Collect Lucky Block (With Carry Limit Check & Rarity/Mutation Filters)
 -- ------------------------------------------------------------------------------
 local isCollectingLB = false
 function Features.CollectLuckyBlocksStep()
@@ -95,27 +183,73 @@ function Features.CollectLuckyBlocksStep()
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
+    local currentCarried = Features.GetCarriedCount()
+    local maxCarry = Features.GetMaxCarryLimit()
+
+    -- Check if carry limit is already reached
+    if currentCarried >= maxCarry then
+        -- Return to home base plot when full
+        local myPlot = Features.GetMyPlot()
+        local plotPos = Features.GetPlotPosition(myPlot)
+        if plotPos and root then
+            local basePos = plotPos + Vector3.new(0, 3, 0)
+            if (root.Position - basePos).Magnitude > 15 then
+                root.CFrame = CFrame.new(basePos)
+            end
+        end
+        return
+    end
+
     local slimesFolder = Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("Slimes")
     local candidates = {}
 
+    local selectedRarity = Features.State.FilterRarity or "All"
+    local selectedMutation = Features.State.FilterMutation or "All"
+
+    local function matchesFilter(block)
+        local blockRarity = Features.ResolveBlockRarity(block)
+        local blockMutation = Features.ResolveMutation(block)
+
+        -- Check Rarity
+        local rarityMatch = (selectedRarity == "All") or (string.lower(selectedRarity) == string.lower(blockRarity))
+
+        -- Check Mutation
+        local mutationMatch = (selectedMutation == "All")
+        if not mutationMatch then
+            local selMutLower = string.lower(selectedMutation)
+            local blkMutLower = string.lower(blockMutation)
+            if selMutLower == "gold" or selMutLower == "golden" then
+                mutationMatch = (blkMutLower == "gold" or blkMutLower == "golden")
+            else
+                mutationMatch = (selMutLower == blkMutLower)
+            end
+        end
+
+        return rarityMatch and mutationMatch
+    end
+
     if slimesFolder then
         for _, block in ipairs(slimesFolder:GetChildren()) do
-            local prompt = block:FindFirstChildWhichIsA("ProximityPrompt", true)
-            if prompt and (prompt.Name == "StealPrompt" or prompt.ActionText:lower():find("collect")) then
-                local part = prompt.Parent:IsA("BasePart") and prompt.Parent or block.PrimaryPart or block:FindFirstChild("RootPart")
-                if part then
-                    table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
+            if block:IsA("Model") and matchesFilter(block) then
+                local prompt = block:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if prompt and (prompt.Name == "StealPrompt" or prompt.ActionText:lower():find("collect")) then
+                    local part = prompt.Parent:IsA("BasePart") and prompt.Parent or block.PrimaryPart or block:FindFirstChild("RootPart")
+                    if part then
+                        table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
+                    end
                 end
             end
         end
     end
 
-    -- Also check general workspace prompts
-    for _, prompt in ipairs(Workspace:GetDescendants()) do
-        if prompt:IsA("ProximityPrompt") and prompt.Name == "StealPrompt" and prompt.ActionText:lower():find("collect") then
-            local part = prompt.Parent:IsA("BasePart") and prompt.Parent or prompt.Parent.Parent:FindFirstChild("RootPart")
-            if part and not table.find(candidates, prompt) then
-                table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
+    -- Also check general workspace prompts if filtering is "All"
+    if selectedRarity == "All" and selectedMutation == "All" then
+        for _, prompt in ipairs(Workspace:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") and prompt.Name == "StealPrompt" and prompt.ActionText:lower():find("collect") then
+                local part = prompt.Parent:IsA("BasePart") and prompt.Parent or prompt.Parent.Parent:FindFirstChild("RootPart")
+                if part and not table.find(candidates, prompt) then
+                    table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
+                end
             end
         end
     end
@@ -128,8 +262,11 @@ function Features.CollectLuckyBlocksStep()
     isCollectingLB = true
     task.spawn(function()
         local target = candidates[1]
+        local myPlot = Features.GetMyPlot()
+        local plotPos = Features.GetPlotPosition(myPlot)
+        local returnPos = plotPos and (plotPos + Vector3.new(0, 3, 0)) or (root and root.Position)
+
         if target and target.prompt and target.prompt.Parent and root and root.Parent then
-            local originalCF = root.CFrame
             -- Teleport to lucky block
             root.CFrame = target.part.CFrame + Vector3.new(0, 2, 0)
             task.wait(0.12)
@@ -139,8 +276,13 @@ function Features.CollectLuckyBlocksStep()
                 end
             end)
             task.wait(0.15)
-            if root and root.Parent then
-                root.CFrame = originalCF
+            
+            -- If carry limit is reached after pickup, return to home base plot
+            local updatedCarried = Features.GetCarriedCount()
+            if updatedCarried >= maxCarry and returnPos and root and root.Parent then
+                root.CFrame = CFrame.new(returnPos)
+            elseif returnPos and root and root.Parent then
+                root.CFrame = CFrame.new(returnPos)
             end
         end
         task.wait(0.3)
@@ -158,7 +300,6 @@ function Features.CollectEarningsStep()
             CollectEarningsRemote:FireServer(pad.Name)
         end
     else
-        -- Fallback loop 1-100
         for i = 1, 100 do
             CollectEarningsRemote:FireServer(tostring(i))
         end
@@ -257,9 +398,6 @@ end
 -- Feature 5: Auto Upgrade Soccer Players
 -- ------------------------------------------------------------------------------
 function Features.UpgradeSoccerPlayersStep()
-    local data = Features.GetPlayerData()
-    local cash = data and data.Cash or (LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Cash") and LocalPlayer.leaderstats.Cash.Value or 0)
-    
     local myPlot = Features.GetMyPlot()
     local playerSlimes = Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("PlayerSlimes")
     local mySlimesFolder = playerSlimes and playerSlimes:FindFirstChild(LocalPlayer.Name)
@@ -298,7 +436,6 @@ function Features.AutoRebirthStep()
             RebirthRemote:FireServer()
         end
     else
-        -- Fallback fire
         RebirthRemote:FireServer()
     end
 end
@@ -343,29 +480,6 @@ local MUTATION_COLORS = {
     ["Neon"] = Color3.fromRGB(4, 250, 0),
     ["None"] = Color3.fromRGB(0, 200, 255)
 }
-
-function Features.ResolveMutation(model)
-    local mut = model:GetAttribute("Mutation") or model:GetAttribute("mutation") or model:GetAttribute("Variant")
-    if mut and mut ~= "" and mut ~= "Default" then
-        return tostring(mut)
-    end
-    if model:FindFirstChild("RainbowEffect") or model.Name:lower():find("rainbow") then
-        return "Rainbow"
-    end
-    if model.Name:lower():find("gold") then
-        return "Gold"
-    end
-    if model.Name:lower():find("volcanic") then
-        return "Volcanic"
-    end
-    if model.Name:lower():find("cursed") then
-        return "Cursed"
-    end
-    if model.Name:lower():find("ghost") then
-        return "Ghost"
-    end
-    return "None"
-end
 
 function Features.CreateESPBillboard(target, labelText, mutationText, color)
     local adorneePart = target:IsA("BasePart") and target or target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
@@ -478,15 +592,24 @@ local lastSell = 0
 local lastESP = 0
 
 function Features.Init()
+    if _G.HipHubRenderConn then
+        pcall(function() _G.HipHubRenderConn:Disconnect() end)
+        _G.HipHubRenderConn = nil
+    end
+    if _G.HipHubHeartbeatConn then
+        pcall(function() _G.HipHubHeartbeatConn:Disconnect() end)
+        _G.HipHubHeartbeatConn = nil
+    end
+
     -- Fast RenderStepped hook for Speed Multiplier
-    RunService.RenderStepped:Connect(function()
+    _G.HipHubRenderConn = RunService.RenderStepped:Connect(function()
         if Features.State.MoveSpeedMultiplier and Features.State.MoveSpeedMultiplier > 1 then
             Features.ApplyMoveSpeed()
         end
     end)
 
     -- Heartbeat automation loop
-    RunService.Heartbeat:Connect(function()
+    _G.HipHubHeartbeatConn = RunService.Heartbeat:Connect(function()
         local now = os.clock()
 
         -- Auto Collect Lucky Block
