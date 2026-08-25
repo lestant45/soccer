@@ -888,6 +888,163 @@ local success, err = pcall(function()
 		}
 	end
 
+	local function addMultiDropdown(parent, labelText, options, defaultSelected, callback, layoutOrder)
+		local dropFrame = Instance.new("Frame")
+		dropFrame.Size = UDim2.new(1, 0, 0, 34)
+		dropFrame.BackgroundColor3 = COLORS.glassSurface
+		dropFrame.BackgroundTransparency = 0.4
+		dropFrame.BorderSizePixel = 0
+		dropFrame.ClipsDescendants = true
+		dropFrame.LayoutOrder = layoutOrder or 1
+		dropFrame.Parent = parent
+
+		applyGlass(dropFrame, { corner = CORNER.small, stroke = true, strokeColor = COLORS.borderGlass, strokeThickness = 1, strokeTransparency = 0.85 })
+
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.new(0.42, 0, 0, 34)
+		text.Position = UDim2.new(0, 10, 0, 0)
+		text.BackgroundTransparency = 1
+		text.Text = labelText
+		text.TextColor3 = COLORS.textPrimary
+		text.Font = Enum.Font.Gotham
+		text.TextSize = 11
+		text.TextXAlignment = Enum.TextXAlignment.Left
+		text.Parent = dropFrame
+
+		local selectButton = Instance.new("TextButton")
+		selectButton.Size = UDim2.new(0.53, 0, 0, 24)
+		selectButton.Position = UDim2.new(0.45, 0, 0, 5)
+		selectButton.BackgroundColor3 = COLORS.glassCard
+		selectButton.BorderSizePixel = 0
+		selectButton.TextColor3 = COLORS.accentCyan
+		selectButton.Font = Enum.Font.GothamBold
+		selectButton.TextSize = 10
+		selectButton.TextTruncate = Enum.TextTruncate.AtEnd
+		selectButton.Parent = dropFrame
+
+		applyGlass(selectButton, { corner = CORNER.small })
+
+		local selectedMap = {}
+		if typeof(defaultSelected) == "table" then
+			for _, v in ipairs(defaultSelected) do selectedMap[v] = true end
+			for k, v in pairs(defaultSelected) do if typeof(k) == "string" and v == true then selectedMap[k] = true end end
+		elseif typeof(defaultSelected) == "string" then
+			selectedMap[defaultSelected] = true
+		end
+		if not next(selectedMap) then selectedMap["All"] = true end
+
+		local function getDisplayText()
+			if selectedMap["All"] then return "All  ▼" end
+			local list = {}
+			for opt, isSel in pairs(selectedMap) do
+				if isSel then table.insert(list, opt) end
+			end
+			if #list == 0 then return "None Selected  ▼" end
+			if #list == 1 then return list[1] .. "  ▼" end
+			return tostring(#list) .. " Selected  ▼"
+		end
+
+		selectButton.Text = getDisplayText()
+
+		local maxListHeight = math.min(#options * 26 + 8, 160)
+		local optScroll = Instance.new("ScrollingFrame")
+		optScroll.Size = UDim2.new(1, -20, 0, maxListHeight)
+		optScroll.Position = UDim2.new(0, 10, 0, 36)
+		optScroll.BackgroundTransparency = 1
+		optScroll.BorderSizePixel = 0
+		optScroll.ScrollBarThickness = 3
+		optScroll.ScrollBarImageColor3 = COLORS.accentCyan
+		optScroll.CanvasSize = UDim2.new(0, 0, 0, #options * 26)
+		optScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		optScroll.Parent = dropFrame
+
+		applyListLayout(optScroll, 3)
+
+		local isOpen = false
+
+		local function updateButtonList()
+			for _, child in pairs(optScroll:GetChildren()) do
+				if child:IsA("TextButton") then
+					local optName = child.Name
+					local isSel = selectedMap[optName] == true
+					child.TextColor3 = isSel and COLORS.accentCyan or COLORS.textSecondary
+					child.Text = (isSel and "✓ " or "   ") .. optName
+					child.BackgroundColor3 = isSel and COLORS.glassActive or COLORS.glassHover
+				end
+			end
+			selectButton.Text = getDisplayText()
+		end
+
+		for _, opt in ipairs(options) do
+			local optBtn = Instance.new("TextButton")
+			optBtn.Name = opt
+			optBtn.Size = UDim2.new(1, -6, 0, 22)
+			optBtn.BackgroundColor3 = COLORS.glassHover
+			optBtn.BackgroundTransparency = 0.5
+			optBtn.BorderSizePixel = 0
+			optBtn.Font = Enum.Font.Gotham
+			optBtn.TextSize = 10
+			optBtn.TextXAlignment = Enum.TextXAlignment.Left
+			optBtn.Parent = optScroll
+
+			applyGlass(optBtn, { corner = CORNER.small })
+
+			optBtn.MouseButton1Click:Connect(function()
+				if opt == "All" then
+					table.clear(selectedMap)
+					selectedMap["All"] = true
+				else
+					selectedMap["All"] = nil
+					if selectedMap[opt] then
+						selectedMap[opt] = nil
+					else
+						selectedMap[opt] = true
+					end
+					if not next(selectedMap) then
+						selectedMap["All"] = true
+					end
+				end
+
+				updateButtonList()
+
+				if callback then
+					local selList = {}
+					for k, v in pairs(selectedMap) do if v then table.insert(selList, k) end end
+					task.spawn(callback, selList, selectedMap)
+				end
+			end)
+		end
+
+		updateButtonList()
+
+		selectButton.MouseButton1Click:Connect(function()
+			isOpen = not isOpen
+			local targetH = isOpen and (44 + maxListHeight) or 34
+			selectButton.Text = getDisplayText():gsub("▼", isOpen and "▲" or "▼")
+			TweenService:Create(dropFrame, TweenInfo.new(0.2), { Size = UDim2.new(1, 0, 0, targetH) }):Play()
+		end)
+
+		return {
+			Frame = dropFrame,
+			Set = function(val)
+				table.clear(selectedMap)
+				if typeof(val) == "table" then
+					for _, v in ipairs(val) do selectedMap[v] = true end
+					for k, v in pairs(val) do if typeof(k) == "string" and v then selectedMap[k] = true end end
+				elseif typeof(val) == "string" then
+					selectedMap[val] = true
+				end
+				if not next(selectedMap) then selectedMap["All"] = true end
+				updateButtonList()
+			end,
+			Get = function()
+				local selList = {}
+				for k, v in pairs(selectedMap) do if v then table.insert(selList, k) end end
+				return selList, selectedMap
+			end
+		}
+	end
+
 	local function addButton(parent, labelText, callback, layoutOrder, colorOverride)
 		local btn = Instance.new("TextButton")
 		btn.Size = UDim2.new(1, 0, 0, 30)
@@ -1118,6 +1275,7 @@ local success, err = pcall(function()
 		AddToggle = addToggle,
 		AddSlider = addSlider,
 		AddDropdown = addDropdown,
+		AddMultiDropdown = addMultiDropdown,
 		AddButton = addButton,
 		AddTextbox = addTextbox,
 		AddLabel = addLabel,

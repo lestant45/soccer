@@ -141,15 +141,37 @@ local success, err = pcall(function()
 			Features.State.AutoCollectLuckyBlock = v
 			Config.Farm.AutoCollectLuckyBlock = v
 			if Config.Settings.autoSave then saveConfig() end
-			if v then UI.Notify("Auto Collect", "Collecting Lucky Blocks (respects carry limit)...", 2, "success") end
+			if v then UI.Notify("Auto Collect", "Collecting Lucky Blocks continuously...", 2, "success") end
 		end, 1)
 
-		local rarityOptions = { "All", "Soccer God", "Secret", "Mythic", "Legendary", "Champions", "Spain", "OG", "Epic", "Rare", "Common", "Exclusive", "LIMITED", "Icons", "Japan" }
-		UI.AddDropdown(lbSec, "Filter Rarity", rarityOptions, Config.Farm.FilterRarity or "All", function(opt)
-			Features.State.FilterRarity = opt
-			Config.Farm.FilterRarity = opt
+		local rarityOptions = {
+			"All",
+			"LIMITED",
+			"Japan",
+			"Icons",
+			"Spain",
+			"Champions",
+			"OG",
+			"Exclusive",
+			"Divine",
+			"Soccer God",
+			"Secret",
+			"Mythic",
+			"Legendary",
+			"Epic",
+			"Rare",
+			"Common"
+		}
+		UI.AddMultiDropdown(lbSec, "Filter Rarity (Multi-Select)", rarityOptions, Config.Farm.FilterRarity or { "All" }, function(optList, optMap)
+			Features.State.FilterRarity = optList
+			Config.Farm.FilterRarity = optList
 			if Config.Settings.autoSave then saveConfig() end
-			UI.Notify("Rarity Filter", "Target: " .. opt, 2, "success")
+			local count = #optList
+			if optMap["All"] then
+				UI.Notify("Rarity Filter", "Target: All Rarities", 2, "success")
+			else
+				UI.Notify("Rarity Filter", "Selected " .. tostring(count) .. " Rarities", 2, "success")
+			end
 		end, 2)
 
 		local mutationOptions = { "All", "None", "Gold", "Rainbow", "Volcanic", "Diamond", "Shiny", "Cursed", "Neon", "Ghost" }

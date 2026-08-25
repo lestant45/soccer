@@ -103,9 +103,13 @@ function Features.GetPlayerData()
 end
 
 -- ------------------------------------------------------------------------------
--- Helper: Get Current Carried Items & Max Limit
+-- Helper: Get Current Backpack Count & Max Capacity
 -- ------------------------------------------------------------------------------
-function Features.GetCarriedCount()
+function Features.GetBackpackCount()
+    local data = Features.GetPlayerData()
+    if data and data.Inventory and typeof(data.Inventory) == "table" then
+        return #data.Inventory
+    end
     local count = 0
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if backpack then
@@ -115,6 +119,27 @@ function Features.GetCarriedCount()
             end
         end
     end
+    local char = LocalPlayer.Character
+    if char then
+        for _, item in ipairs(char:GetChildren()) do
+            if item:IsA("Tool") and (item:GetAttribute("slimeUID") ~= nil or item:GetAttribute("slimeID") ~= nil or item.Name:lower():find("lucky block")) then
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
+function Features.GetMaxBackpackLimit()
+    local data = Features.GetPlayerData()
+    if data and data.BackpackLevel then
+        return 10 + (tonumber(data.BackpackLevel) or 0) * 10
+    end
+    return 110
+end
+
+function Features.GetCarriedCount()
+    local count = 0
     local char = LocalPlayer.Character
     if char then
         for _, item in ipairs(char:GetChildren()) do
@@ -338,11 +363,11 @@ function Features.CollectLuckyBlocksStep()
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    local currentCarried = Features.GetCarriedCount()
-    local maxCarry = Features.GetMaxCarryLimit()
+    local backpackCount = Features.GetBackpackCount()
+    local maxBackpack = Features.GetMaxBackpackLimit()
 
-    -- Check if carry limit is already reached
-    if currentCarried >= maxCarry then
+    -- Check if backpack is completely full
+    if backpackCount >= maxBackpack then
         if Features.State.AutoPlaceOpenLuckyBlock then
             isCollectingLB = true
             task.spawn(function()
@@ -350,6 +375,8 @@ function Features.CollectLuckyBlocksStep()
                 task.wait(0.3)
                 isCollectingLB = false
             end)
+        elseif Features.State.AutoSellBackpack then
+            Features.SellFromBackpackStep()
         end
         return
     end
@@ -362,17 +389,48 @@ function Features.CollectLuckyBlocksStep()
 
     local function matchesFilter(block)
         local blockRarity = Features.ResolveBlockRarity(block)
+        local blockRarityLower = string.lower(blockRarity)
         local blockMutation = Features.ResolveMutation(block)
 
-        -- Check Rarity (support Soccer God and Slime God interchangeably)
+        -- Check Rarity with Multi-Select Support
         local rarityMatch = false
-        if selectedRarity == "All" then
+        if not selectedRarity or selectedRarity == "All" then
             rarityMatch = true
-        elseif selectedRarity == "Soccer God" or selectedRarity == "Slime God" then
-            local blkLower = string.lower(blockRarity)
-            rarityMatch = (blkLower == "soccer god" or blkLower == "slime god")
-        else
-            rarityMatch = (string.lower(selectedRarity) == string.lower(blockRarity))
+        elseif typeof(selectedRarity) == "string" then
+            if selectedRarity == "Soccer God" or selectedRarity == "Slime God" then
+                rarityMatch = (blockRarityLower == "soccer god" or blockRarityLower == "slime god")
+            else
+                rarityMatch = (string.lower(selectedRarity) == blockRarityLower)
+            end
+        elseif typeof(selectedRarity) == "table" then
+            if selectedRarity["All"] or table.find(selectedRarity, "All") then
+                rarityMatch = true
+            else
+                for _, r in ipairs(selectedRarity) do
+                    local rLower = string.lower(tostring(r))
+                    if (rLower == "soccer god" or rLower == "slime god") and (blockRarityLower == "soccer god" or blockRarityLower == "slime god") then
+                        rarityMatch = true
+                        break
+                    elseif rLower == blockRarityLower then
+                        rarityMatch = true
+                        break
+                    end
+                end
+                if not rarityMatch then
+                    for k, v in pairs(selectedRarity) do
+                        if v == true then
+                            local kLower = string.lower(tostring(k))
+                            if (kLower == "soccer god" or kLower == "slime god") and (blockRarityLower == "soccer god" or blockRarityLower == "slime god") then
+                                rarityMatch = true
+                                break
+                            elseif kLower == blockRarityLower then
+                                rarityMatch = true
+                                break
+                            end
+                        end
+                    end
+                end
+            end
         end
 
         -- Check Mutation
@@ -405,7 +463,8 @@ function Features.CollectLuckyBlocksStep()
     end
 
     -- Also check general workspace prompts if filtering is "All"
-    if selectedRarity == "All" and selectedMutation == "All" then
+    local isAllSelected = (selectedRarity == "All") or (typeof(selectedRarity) == "table" and (selectedRarity["All"] or table.find(selectedRarity, "All")))
+    if isAllSelected and selectedMutation == "All" then
         for _, prompt in ipairs(Workspace:GetDescendants()) do
             if prompt:IsA("ProximityPrompt") and prompt.Name == "StealPrompt" and prompt.ActionText:lower():find("collect") then
                 local part = prompt.Parent:IsA("BasePart") and prompt.Parent or prompt.Parent.Parent:FindFirstChild("RootPart")
@@ -439,9 +498,8 @@ function Features.CollectLuckyBlocksStep()
             end)
             task.wait(0.15)
             
-            -- Only deposit/open if AutoPlaceOpenLuckyBlock toggle is enabled
-            local updatedCarried = Features.GetCarriedCount()
-            if updatedCarried >= maxCarry and Features.State.AutoPlaceOpenLuckyBlock then
+            -- If AutoPlaceOpenLuckyBlock is enabled, deposit to empty stands
+            if Features.State.AutoPlaceOpenLuckyBlock then
                 Features.DepositAndOpenCarriedLuckyBlocks()
             elseif returnPos and root and root.Parent then
                 root.CFrame = CFrame.new(returnPos)
