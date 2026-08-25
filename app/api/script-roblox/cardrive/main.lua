@@ -1,25 +1,36 @@
--- 🧠 CAB & HipHub CDID — Main Window Controller & Character Mods
--- Handles Character Physics, Anti-AFK, Flight, Noclip, Prompts, Server Utilities, and Window Controls
-
+-- ==============================================================================
+-- 🧠 HipHub — Main Controller (Jump To Steal Soccer Players)
+-- ==============================================================================
 local success, err = pcall(function()
 	local UI = _G.HipHubUI
 	if not UI then return end
 
-	local Config = _G.HipHubConfig or { main = {} }
-	local Players = game:GetService("Players")
-	local RunService = game:GetService("RunService")
-	local UserInputService = game:GetService("UserInputService")
+	local Config = _G.HipHubConfig or { Farm = {}, Movement = {}, Visuals = {}, Settings = {} }
+	local Features = _G.HipHubFeatures
+	if not Features then
+		pcall(function()
+			Features = require(script.Parent.features)
+		end)
+	end
+	if not Features then
+		Features = { State = {} }
+	end
+	if Features.Init and not _G.HipHubFeaturesInitialized then
+		Features.Init()
+		_G.HipHubFeaturesInitialized = true
+	end
+
 	local TweenService = game:GetService("TweenService")
-	local TeleportService = game:GetService("TeleportService")
-	local VirtualUser = game:GetService("VirtualUser")
-	local player = Players.LocalPlayer
+	local UserInputService = game:GetService("UserInputService")
+	local Players = game:GetService("Players")
+	local LocalPlayer = Players.LocalPlayer
 
 	local mainFrame = UI.mainFrame
 	local topBar = UI.topBar
 	local closeButton = UI.closeButton
 	local minimizeButton = UI.minimizeButton
-	local fullscreenButton = UI.fullscreenButton
 	local syncShadow = UI.SyncShadow
+	local saveConfig = _G.HipHubSaveConfig or function() end
 
 	------------------------------------------------
 	-- 🖼️ WINDOW DRAGGING FUNCTIONALITY
@@ -67,7 +78,7 @@ local success, err = pcall(function()
 		end
 	end)
 
-	-- Minimize & Close
+	-- Minimize Action
 	minimizeButton.MouseButton1Click:Connect(function()
 		isMinimized = not isMinimized
 		if isMinimized then
@@ -89,257 +100,183 @@ local success, err = pcall(function()
 		task.delay(0.24, syncShadow)
 	end)
 
+	-- Close Action
 	closeButton.MouseButton1Click:Connect(function()
 		mainFrame.Visible = false
 		UI.shadowFrame.Visible = false
-		UI.Notify("HipHub CDID Hidden", "Press [Right Shift] to show the menu again.", 3, "success")
+		local toggleKey = (Config.UI and Config.UI.ToggleKey) or "RightShift"
+		UI.Notify("HipHub Hidden", "Press [" .. toggleKey .. "] to show the menu again.", 3, "success")
 	end)
 
 	------------------------------------------------
-	-- 🏃 CHARACTER MODIFICATIONS
+	-- ⚡ TAB 1: AUTO FARM & AUTOMATION
 	------------------------------------------------
-	local walkSpeed = Config.main.walkSpeed or 16
-	local jumpPower = Config.main.jumpPower or 50
-	local infStamina = Config.main.infiniteStamina or false
-	local noclipActive = Config.main.noclip or false
-	local flyActive = Config.main.fly or false
-	local flySpeed = Config.main.flySpeed or 50
-	local infJump = false
-	local antiRagdoll = Config.main.antiRagdoll or true
-	local instantPrompt = Config.main.instantPrompt or false
-
-	RunService.RenderStepped:Connect(function()
-		local char = player.Character
-		if char and char:FindFirstChild("Humanoid") then
-			local hum = char.Humanoid
-			if walkSpeed > 16 then hum.WalkSpeed = walkSpeed end
-			if jumpPower > 50 then hum.JumpPower = jumpPower end
-			if antiRagdoll and hum.PlatformStand then hum.PlatformStand = false end
-		end
-	end)
-
-	-- Infinite Stamina
-	task.spawn(function()
-		while true do
-			if infStamina then
-				pcall(function()
-					local stamina = player.Character and (player.Character:FindFirstChild("Stamina") or player.Character:FindFirstChild("Energy"))
-					if stamina and stamina:IsA("NumberValue") then
-						stamina.Value = 100
-					end
-				end)
-			end
-			task.wait(1)
-		end
-	end)
-
-	-- Character Noclip
-	RunService.Stepped:Connect(function()
-		if noclipActive and player.Character then
-			for _, part in pairs(player.Character:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = false
-				end
-			end
-		end
-	end)
-
-	-- Infinite Jump
-	UserInputService.JumpRequest:Connect(function()
-		if infJump and player.Character and player.Character:FindFirstChild("Humanoid") then
-			player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-		end
-	end)
-
-	-- Character Fly
-	local charBv, charBg
-	local function toggleCharFly(enable)
-		flyActive = enable
-		local char = player.Character
-		if not enable then
-			if charBv then charBv:Destroy(); charBv = nil end
-			if charBg then charBg:Destroy(); charBg = nil end
-			return
+	local mainTabFrame = UI.tabs["Main"] and UI.tabs["Main"].Frame
+	if mainTabFrame then
+		-- Clear existing placeholder content
+		for _, child in ipairs(mainTabFrame:GetChildren()) do
+			if child:IsA("Frame") then child:Destroy() end
 		end
 
-		if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-		local root = char.HumanoidRootPart
+		-- Section 1: Lucky Blocks Automation
+		local lbSec = UI.AddSection(mainTabFrame, "📦 Lucky Block Automation", 1)
 
-		charBv = Instance.new("BodyVelocity")
-		charBv.Velocity = Vector3.zero
-		charBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-		charBv.Parent = root
+		UI.AddToggle(lbSec, "Auto Collect Lucky Block", Config.Farm.AutoCollectLuckyBlock or false, function(v)
+			Features.State.AutoCollectLuckyBlock = v
+			Config.Farm.AutoCollectLuckyBlock = v
+			if Config.Settings.autoSave then saveConfig() end
+			if v then UI.Notify("Auto Collect", "Collecting Lucky Blocks across the map...", 2, "success") end
+		end, 1)
 
-		charBg = Instance.new("BodyGyro")
-		charBg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-		charBg.P = 9000
-		charBg.CFrame = root.CFrame
-		charBg.Parent = root
+		UI.AddToggle(lbSec, "Auto Place & Open Lucky Block", Config.Farm.AutoPlaceOpenLuckyBlock or false, function(v)
+			Features.State.AutoPlaceOpenLuckyBlock = v
+			Config.Farm.AutoPlaceOpenLuckyBlock = v
+			if Config.Settings.autoSave then saveConfig() end
+			if v then UI.Notify("Auto Place & Open", "Placing & Opening Lucky Blocks on stands...", 2, "success") end
+		end, 2)
 
-		task.spawn(function()
-			local cam = workspace.CurrentCamera
-			while flyActive and char and char.Parent and root and root.Parent do
-				local moveDir = Vector3.zero
-				if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
-				if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
-				if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
-				if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
-				if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
-				if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+		-- Section 2: Economy & Income
+		local econSec = UI.AddSection(mainTabFrame, "💰 Economy & Collection", 2)
 
-				if charBv and charBg then
-					charBv.Velocity = moveDir.Magnitude > 0 and (moveDir.Unit * flySpeed) or Vector3.zero
-					charBg.CFrame = cam.CFrame
-				end
-				RunService.RenderStepped:Wait()
-			end
-			if charBv then charBv:Destroy(); charBv = nil end
-			if charBg then charBg:Destroy(); charBg = nil end
-		end)
+		UI.AddToggle(econSec, "Auto Collect Earnings", Config.Farm.AutoCollectEarnings or false, function(v)
+			Features.State.AutoCollectEarnings = v
+			Config.Farm.AutoCollectEarnings = v
+			if Config.Settings.autoSave then saveConfig() end
+			if v then UI.Notify("Auto Earnings", "Continuously collecting plot earnings...", 2, "success") end
+		end, 1)
+
+		UI.AddToggle(econSec, "Auto Sell From Backpack", Config.Farm.AutoSellBackpack or false, function(v)
+			Features.State.AutoSellBackpack = v
+			Config.Farm.AutoSellBackpack = v
+			if Config.Settings.autoSave then saveConfig() end
+		end, 2)
+
+		UI.AddButton(econSec, "💵 Quick Sell All Backpack", function()
+			Features.SellFromBackpackStep()
+			UI.Notify("Sold Inventory", "Sold all players in backpack.", 2, "success")
+		end, 3)
+
+		-- Section 3: Progression, Players & Upgrades
+		local progSec = UI.AddSection(mainTabFrame, "⭐ Progression & Upgrades", 3)
+
+		UI.AddToggle(progSec, "Auto Buy Speed Upgrade", Config.Farm.AutoBuySpeedUpgrade or false, function(v)
+			Features.State.AutoBuySpeedUpgrade = v
+			Config.Farm.AutoBuySpeedUpgrade = v
+			if Config.Settings.autoSave then saveConfig() end
+		end, 1)
+
+		UI.AddToggle(progSec, "Auto Upgrade Soccer Players", Config.Farm.AutoUpgradePlayers or false, function(v)
+			Features.State.AutoUpgradePlayers = v
+			Config.Farm.AutoUpgradePlayers = v
+			if Config.Settings.autoSave then saveConfig() end
+		end, 2)
+
+		UI.AddToggle(progSec, "Auto Rebirth", Config.Farm.AutoRebirth or false, function(v)
+			Features.State.AutoRebirth = v
+			Config.Farm.AutoRebirth = v
+			if Config.Settings.autoSave then saveConfig() end
+			if v then UI.Notify("Auto Rebirth", "Auto-rebirthing when jump requirements are met.", 2, "success") end
+		end, 3)
+
+		UI.AddToggle(progSec, "Auto Pick Up All Soccer Players", Config.Farm.AutoPickupAllPlayers or false, function(v)
+			Features.State.AutoPickupAllPlayers = v
+			Config.Farm.AutoPickupAllPlayers = v
+			if Config.Settings.autoSave then saveConfig() end
+		end, 4)
+
+		UI.AddButton(progSec, "🧤 Pick Up All My Soccer Players Now", function()
+			Features.PickupAllSoccerPlayersStep()
+			UI.Notify("Picked Up", "Retrieved soccer players from plot.", 2, "success")
+		end, 5)
 	end
 
-	-- Instant Proximity Prompts (Event-driven instant trigger without heavy workspace scanning or HoldDuration mutation)
-	local ProximityPromptService = game:GetService("ProximityPromptService")
-	ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
-		if instantPrompt and prompt and prompt.Enabled then
-			pcall(function()
-				if fireproximityprompt then
-					fireproximityprompt(prompt, 0)
-				end
-			end)
-		end
-	end)
+	------------------------------------------------
+	-- 🏃 TAB 2: MOVEMENT & VISUALS (ESP)
+	------------------------------------------------
+	local moveTabFrame = UI.AddTab("Visuals", "👁️", 2)
+	if moveTabFrame then
+		-- Section 1: Movement & Speed
+		local moveSec = UI.AddSection(moveTabFrame, "🏃 Movement & Character Speed", 1)
 
-	-- Anti-AFK
-	player.Idled:Connect(function()
-		if Config.main.antiAfk then
-			VirtualUser:CaptureController()
-			VirtualUser:ClickButton2(Vector2.zero)
-		end
-	end)
+		UI.AddSlider(moveSec, "Move Speed Multiplier (Capped at 3x)", 1, 10, Config.Movement.MoveSpeedMultiplier or 1, function(v)
+			Features.State.MoveSpeedMultiplier = v
+			Config.Movement.MoveSpeedMultiplier = v
+			Features.ApplyMoveSpeed()
+			if Config.Settings.autoSave then saveConfig() end
+		end, 1, "x")
+
+		UI.AddButton(moveSec, "🔄 Reset Speed to Default (1x)", function()
+			Features.State.MoveSpeedMultiplier = 1
+			Config.Movement.MoveSpeedMultiplier = 1
+			Features.ApplyMoveSpeed()
+			UI.Notify("Speed Reset", "Character speed restored to 1x.", 2, "success")
+		end, 2)
+
+		-- Section 2: ESP with Mutation Badges
+		local espSec = UI.AddSection(moveTabFrame, "✨ ESP & Visuals", 2)
+
+		UI.AddToggle(espSec, "Egg / Lucky Block ESP (Mutation: Gold/Rainbow/None)", Config.Visuals.LuckyBlockESP or false, function(v)
+			Features.State.LuckyBlockESP = v
+			Config.Visuals.LuckyBlockESP = v
+			Features.UpdateESP()
+			if Config.Settings.autoSave then saveConfig() end
+			if v then UI.Notify("ESP Enabled", "Rendering Lucky Blocks with Mutation badges.", 2, "success") end
+		end, 1)
+
+		UI.AddLabel(espSec, "🏷️ Mutation Colors: Gold (#FAB026) | Rainbow | Cyan", 2)
+	end
 
 	------------------------------------------------
-	-- 🎨 BUILD MAIN TAB UI
+	-- ℹ️ TAB 4: LIVE STATS & INFO
 	------------------------------------------------
-	local mFrame = UI.tabs["Main"].Frame
+	local infoTabFrame = UI.tabs["Info"] and UI.tabs["Info"].Frame
+	if infoTabFrame then
+		for _, child in ipairs(infoTabFrame:GetChildren()) do
+			if child:IsA("Frame") then child:Destroy() end
+		end
 
-	-- Welcome Banner Card
-	local wlCard = Instance.new("Frame")
-	wlCard.Size = UDim2.new(1, 0, 0, 68)
-	wlCard.BackgroundColor3 = UI.COLORS.glassCard
-	wlCard.BackgroundTransparency = UI.TRANSPARENCY.glassCard
-	wlCard.BorderSizePixel = 0
-	wlCard.LayoutOrder = 1
-	wlCard.Parent = mFrame
+		local liveSec = UI.AddSection(infoTabFrame, "📊 Live Player Stats", 1)
+		local cashLabel = UI.AddLabel(liveSec, "Cash: $0", 1)
+		local jumpLabel = UI.AddLabel(liveSec, "Jump: 0", 2)
+		local rebLabel = UI.AddLabel(liveSec, "Rebirth: 0", 3)
+		local plotLabel = UI.AddLabel(liveSec, "Plot: Searching...", 4)
 
-	local wlCorner = Instance.new("UICorner")
-	wlCorner.CornerRadius = UI.CORNER.medium
-	wlCorner.Parent = wlCard
+		-- Live ticker
+		task.spawn(function()
+			while mainFrame and mainFrame.Parent do
+				pcall(function()
+					local data = Features.GetPlayerData()
+					local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+					local cashVal = data and data.Cash or (leaderstats and leaderstats:FindFirstChild("Cash") and leaderstats.Cash.Value or "0")
+					local jumpVal = data and data.Jump or (leaderstats and leaderstats:FindFirstChild("Jump") and leaderstats.Jump.Value or "0")
+					local rebVal = data and data.Rebirth or (leaderstats and leaderstats:FindFirstChild("Rebirth") and leaderstats.Rebirth.Value or "0")
+					local myPlot = Features.GetMyPlot()
 
-	local wlStroke = Instance.new("UIStroke")
-	wlStroke.Color = UI.COLORS.borderGlass
-	wlStroke.Thickness = 1
-	wlStroke.Transparency = 0.7
-	wlStroke.Parent = wlCard
-
-	local wlTitle = Instance.new("TextLabel")
-	wlTitle.Size = UDim2.new(1, -20, 0, 24)
-	wlTitle.Position = UDim2.new(0, 12, 0, 8)
-	wlTitle.BackgroundTransparency = 1
-	wlTitle.Text = "Welcome to HipHub CDID, " .. player.DisplayName .. "!"
-	wlTitle.TextColor3 = UI.COLORS.textWhite
-	wlTitle.Font = Enum.Font.GothamBold
-	wlTitle.TextSize = 13
-	wlTitle.TextXAlignment = Enum.TextXAlignment.Left
-	wlTitle.Parent = wlCard
-
-	local wlDesc = Instance.new("TextLabel")
-	wlDesc.Size = UDim2.new(1, -20, 0, 26)
-	wlDesc.Position = UDim2.new(0, 12, 0, 32)
-	wlDesc.BackgroundTransparency = 1
-	wlDesc.Text = "Fully loaded: Auto Farm, Vehicle Tuning, Teleports, ESP, and Character Enhancements."
-	wlDesc.TextColor3 = UI.COLORS.textSecondary
-	wlDesc.Font = Enum.Font.Gotham
-	wlDesc.TextSize = 10
-	wlDesc.TextXAlignment = Enum.TextXAlignment.Left
-	wlDesc.TextWrapped = true
-	wlDesc.Parent = wlCard
-
-	-- Character Physics Section
-	local charSec = UI.AddSection(mFrame, "🏃 Character Modifications", 2)
-
-	UI.AddSlider(charSec, "WalkSpeed Modifier", 16, 150, walkSpeed, function(v)
-		walkSpeed = v
-		Config.main.walkSpeed = v
-	end, 1, " studs/s")
-
-	UI.AddSlider(charSec, "JumpPower Modifier", 50, 250, jumpPower, function(v)
-		jumpPower = v
-		Config.main.jumpPower = v
-	end, 2, " studs/s")
-
-	UI.AddToggle(charSec, "Infinite Stamina", infStamina, function(v)
-		infStamina = v
-		Config.main.infiniteStamina = v
-	end, 3)
-
-	UI.AddToggle(charSec, "Character Noclip (Pass through walls)", noclipActive, function(v)
-		noclipActive = v
-		Config.main.noclip = v
-	end, 4)
-
-	UI.AddToggle(charSec, "Infinite Jump (Jump mid-air)", infJump, function(v)
-		infJump = v
-	end, 5)
-
-	-- Flight & Utility
-	local flySec = UI.AddSection(mFrame, "🕊️ Flight & Character Utilities", 3)
-
-	UI.AddToggle(flySec, "Character Fly", flyActive, function(v)
-		toggleCharFly(v)
-		Config.main.fly = v
-	end, 1)
-
-	UI.AddSlider(flySec, "Flight Speed", 20, 150, flySpeed, function(v)
-		flySpeed = v
-		Config.main.flySpeed = v
-	end, 2, " studs/s")
-
-	UI.AddToggle(flySec, "Instant Proximity Prompts (0s Hold)", instantPrompt, function(v)
-		instantPrompt = v
-		Config.main.instantPrompt = v
-	end, 3)
-
-	UI.AddToggle(flySec, "Anti-AFK (Prevent 20min kick)", Config.main.antiAfk, function(v)
-		Config.main.antiAfk = v
-	end, 4)
-
-	-- Server & Position Tools
-	local srvSec = UI.AddSection(mFrame, "🌐 Server Utilities & Diagnostics", 4)
-
-	UI.AddButton(srvSec, "📋 Copy Current Coordinates (Vector3)", function()
-		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-		if root then
-			local pos = root.Position
-			local posStr = string.format("Vector3.new(%.3f, %.3f, %.3f)", pos.X, pos.Y, pos.Z)
-			if setclipboard then
-				setclipboard(posStr)
-				UI.Notify("Copied Coordinates", posStr, 3, "success")
-			else
-				UI.Notify("Position", posStr, 3, "success")
+					cashLabel.Text = "Cash: $" .. tostring(cashVal)
+					jumpLabel.Text = "Jump: " .. tostring(jumpVal)
+					rebLabel.Text = "Rebirth: " .. tostring(rebVal)
+					plotLabel.Text = "Plot: " .. (myPlot and myPlot.Name or "Unknown")
+				end)
+				task.wait(1.5)
 			end
-		end
-	end, 1)
+		end)
 
-	UI.AddButton(srvSec, "🔄 Rejoin Current Server", function()
-		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-	end, 2)
+		local sysSec = UI.AddSection(infoTabFrame, "ℹ️ System Information", 2)
+		UI.AddLabel(sysSec, "Game: Jump To Steal Soccer Players", 1)
+		UI.AddLabel(sysSec, "User: " .. (LocalPlayer.DisplayName or LocalPlayer.Name) .. " (@" .. LocalPlayer.Name .. ")", 2)
+		UI.AddLabel(sysSec, "Place ID: " .. tostring(game.PlaceId), 3)
 
-	UI.AddButton(srvSec, "🚀 Server Hop (Join New Server)", function()
-		TeleportService:Teleport(game.PlaceId, player)
-	end, 3)
+		local execName = "Unknown"
+		pcall(function()
+			local fn = identifyexecutor or getexecutorname
+			if fn then execName = fn() end
+		end)
+		UI.AddLabel(sysSec, "Executor: " .. tostring(execName), 4)
+	end
+
+	UI.SelectTab("Main")
 end)
 
 if not success then
-	warn("[HipHub CDID Main Error]:", err)
+	warn("[HipHub Main Error]:", err)
 end

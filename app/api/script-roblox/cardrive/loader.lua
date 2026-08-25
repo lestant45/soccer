@@ -1,18 +1,15 @@
--- 🚀 HipHub CDID — Local Development Loader
--- Loads and executes all modular CDID tab scripts from workspace in proper dependency order
-
+-- ==============================================================================
+-- 🚀 HipHub — Local Development Loader (Jump To Steal Soccer Players)
+-- ==============================================================================
 local MODULE_FILES = {
 	"ui.lua",
+	"features.lua",
 	"settings.lua",
-	"teleport.lua",
-	"visuals.lua",
-	"vehicle.lua",
-	"farm.lua",
 	"main.lua"
 }
 
 local function debugLog(message)
-	print("[HipHub CDID Loader] " .. tostring(message))
+	print("[HipHub Loader] " .. tostring(message))
 end
 
 local function loadScriptFile(fileName)

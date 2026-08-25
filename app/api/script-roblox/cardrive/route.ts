@@ -22,19 +22,22 @@ function stripComments(code: string): string {
   // Strip multi-line comments: --[[ ... ]]
   let clean = code.replace(/--\[\[[\s\S]*?\]\]/g, "");
   // Strip single-line comments: -- ...
-  clean = clean.split("\n").map(line => {
-    let inDouble = false;
-    let inSingle = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"' && line[i - 1] !== "\\") inDouble = !inDouble;
-      if (c === "'" && line[i - 1] !== "\\") inSingle = !inSingle;
-      if (c === "-" && line[i + 1] === "-" && !inDouble && !inSingle) {
-        return line.substring(0, i);
+  clean = clean
+    .split("\n")
+    .map((line) => {
+      let inDouble = false;
+      let inSingle = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"' && line[i - 1] !== "\\") inDouble = !inDouble;
+        if (c === "'" && line[i - 1] !== "\\") inSingle = !inSingle;
+        if (c === "-" && line[i + 1] === "-" && !inDouble && !inSingle) {
+          return line.substring(0, i);
+        }
       }
-    }
-    return line;
-  }).join("\n");
+      return line;
+    })
+    .join("\n");
   return clean;
 }
 
@@ -69,7 +72,7 @@ function localObfuscate(code: string, decName: string, key: number): string {
   });
 
   const arrayName = makeId(8);
-  const encryptedStrings = strings.map(s => {
+  const encryptedStrings = strings.map((s) => {
     const bytes: number[] = [];
     const buf = Buffer.from(s, "utf8");
     for (let i = 0; i < buf.length; i++) {
@@ -373,50 +376,25 @@ end)
 export async function GET(request: NextRequest) {
   try {
     const userAgent = (request.headers.get("user-agent") || "").toLowerCase();
-    const isRoblox = userAgent.includes("roblox") && 
-                     !userAgent.includes("curl") && 
-                     !userAgent.includes("postman") && 
-                     !userAgent.includes("insomnia") && 
-                     !userAgent.includes("python") && 
-                     !userAgent.includes("wget") && 
-                     !userAgent.includes("axios");
+    const isRoblox =
+      userAgent.includes("roblox") &&
+      !userAgent.includes("curl") &&
+      !userAgent.includes("postman") &&
+      !userAgent.includes("insomnia") &&
+      !userAgent.includes("python") &&
+      !userAgent.includes("wget") &&
+      !userAgent.includes("axios");
 
     // Detect browser headers to block direct browser access even if User-Agent is spoofed
-    const isBrowser = request.headers.has("sec-ch-ua") || 
-                      request.headers.has("sec-fetch-mode") || 
-                      (request.headers.get("accept") || "").includes("text/html");
+    const isBrowser =
+      request.headers.has("sec-ch-ua") ||
+      request.headers.has("sec-fetch-mode") ||
+      (request.headers.get("accept") || "").includes("text/html");
 
     // Deny direct browser/curl access immediately if not originating from Roblox client/executors
     if (!isRoblox || isBrowser) {
-      return new NextResponse(
-        `error("HipHub Security: Access Denied.")`,
-        {
-          status: 403,
-          headers: {
-            "Content-Type": "text/plain",
-            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-          },
-        }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const isPayload = searchParams.get("payload") === "true";
-    const gameId = searchParams.get("gameId");
-    const placeId = searchParams.get("placeId");
-
-    const host = request.headers.get("host") || "hiphub.cloud";
-    const proto = host.includes("localhost") ? "http" : "https";
-    const baseUrl = `${proto}://${host}`;
-
-    // Place ID check
-    const allowedPlaceIds = ["14005966837", "130760175971028", "140063367098641", "2640407187"];
-    if ((gameId || placeId) && !allowedPlaceIds.includes(String(gameId)) && !allowedPlaceIds.includes(String(placeId))) {
-      const errScript = getErrorGuiLua(
-        "Access Denied: This script is locked and can only be executed in authorized games.",
-        "https://hiphub.cloud/"
-      );
-      return new NextResponse(errScript, {
+      return new NextResponse(`error("HipHub Security: Access Denied.")`, {
+        status: 403,
         headers: {
           "Content-Type": "text/plain",
           "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
@@ -424,29 +402,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const { searchParams } = new URL(request.url);
+    const isPayload = searchParams.get("payload") === "true";
+
+    const host = request.headers.get("host") || "hiphub.cloud";
+    const proto = host.includes("localhost") ? "http" : "https";
+    const baseUrl = `${proto}://${host}`;
+
     // Serve loader bootstrapper script if payload is not requested yet
     if (!isPayload) {
       const loaderScript = `-- HipHub Keyless Loader Bootstrapper
 repeat task.wait() until game:IsLoaded()
-
-local allowedPlaceIds = {
-    [14005966837] = true,
-    [130760175971028] = true,
-    [140063367098641] = true,
-    [2640407187] = true,
-}
-
-if not allowedPlaceIds[game.PlaceId] and not allowedPlaceIds[game.GameId] then
-    pcall(function()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "HipHub",
-            Text = "not support",
-            Duration = 5
-        })
-    end)
-    print("not support")
-    return
-end
 
 local player = game:GetService("Players").LocalPlayer
 while not player do
@@ -466,7 +432,7 @@ local function findGuiInParents(name)
     return nil
 end
 
-local gui = findGuiInParents("HipHub")
+local gui = findGuiInParents("HipHub_UI") or findGuiInParents("HipHub")
 if gui then
     return
 end
@@ -642,11 +608,8 @@ func()
     // Serving main script payload (Keyless)
     const scriptDir = path.join(process.cwd(), "app/api/script-roblox/cardrive");
     const uiPath = path.join(scriptDir, "ui.lua");
+    const featuresPath = path.join(scriptDir, "features.lua");
     const settingsPath = path.join(scriptDir, "settings.lua");
-    const teleportPath = path.join(scriptDir, "teleport.lua");
-    const visualsPath = path.join(scriptDir, "visuals.lua");
-    const vehiclePath = path.join(scriptDir, "vehicle.lua");
-    const farmPath = path.join(scriptDir, "farm.lua");
     const mainPath = path.join(scriptDir, "main.lua");
 
     if (!fs.existsSync(uiPath)) {
@@ -666,11 +629,8 @@ func()
     let luaScript = `_G.hiphub_key = "KEYLESS"\n_G.hiphub_role = "${userRole}"\n_G.hiphub_url = "${baseUrl}"\nif getgenv then getgenv().hiphub_key = "KEYLESS" end\nif getgenv then getgenv().hiphub_role = "${userRole}" end\nif getgenv then getgenv().hiphub_url = "${baseUrl}" end\n`;
     luaScript += fs.readFileSync(uiPath, "utf8");
 
+    if (fs.existsSync(featuresPath)) luaScript += "\n" + fs.readFileSync(featuresPath, "utf8");
     if (fs.existsSync(settingsPath)) luaScript += "\n" + fs.readFileSync(settingsPath, "utf8");
-    if (fs.existsSync(teleportPath)) luaScript += "\n" + fs.readFileSync(teleportPath, "utf8");
-    if (fs.existsSync(visualsPath)) luaScript += "\n" + fs.readFileSync(visualsPath, "utf8");
-    if (fs.existsSync(vehiclePath)) luaScript += "\n" + fs.readFileSync(vehiclePath, "utf8");
-    if (fs.existsSync(farmPath)) luaScript += "\n" + fs.readFileSync(farmPath, "utf8");
     if (fs.existsSync(mainPath)) luaScript += "\n" + fs.readFileSync(mainPath, "utf8");
 
     const executor = (searchParams.get("executor") || "").toLowerCase();
@@ -688,7 +648,10 @@ func()
     const disableLuraph = process.env.DISABLE_LURAPH === "true" || isArceus;
     const obfuscationType = disableLuraph ? "xor" : "luraph";
 
-    const sourceHash = crypto.createHash("sha256").update(luaScript + "_" + obfuscationType).digest("hex");
+    const sourceHash = crypto
+      .createHash("sha256")
+      .update(luaScript + "_" + obfuscationType)
+      .digest("hex");
 
     if (globalCache && globalCache.sourceHash === sourceHash) {
       return new NextResponse(globalCache.obfuscatedCode, {
@@ -813,15 +776,7 @@ export async function POST(request: NextRequest) {
 
     // Parse body
     const body = await request.json();
-    const { action, placeId } = body;
-
-    // Enforce place ID check for game-specific backend operations
-    const allowedPlaceIds = [
-      "14005966837", "130760175971028", "140063367098641", "2640407187"
-    ];
-    if (placeId && !allowedPlaceIds.includes(String(placeId))) {
-      return NextResponse.json({ error: "Access Denied: Invalid Place ID" }, { status: 403 });
-    }
+    const { action } = body;
 
     if (action === "ping") {
       return NextResponse.json({ success: true, message: "pong" });

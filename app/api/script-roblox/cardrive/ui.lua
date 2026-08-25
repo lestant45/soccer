@@ -1,4 +1,4 @@
--- 🌐 HipHub — Liquid Glass Futuristic UI Base (Car Driving Indonesia)
+-- 🌐 HipHub — Clean Base UI Template
 -- Pure UI Layout Base & Component Library
 -- Theme: Glassmorphism / Liquid Glass with Cyan-Violet accents
 
@@ -14,27 +14,6 @@ while not player do
 end
 
 local success, err = pcall(function()
-	-- Pre-loader optimization check
-	pcall(function()
-		local HttpService = game:GetService("HttpService")
-		local file = "HipHub/cdid_config.json"
-		if isfile and not isfile(file) then
-			file = "cdid_config.json"
-		end
-		if isfile and isfile(file) and readfile then
-			local configData = HttpService:JSONDecode(readfile(file))
-			if configData and configData.misc then
-				local misc = configData.misc
-				if misc.blackScreenEnabled == true then
-					pcall(function() game:GetService("RunService"):Set3dRenderingEnabled(false) end)
-				end
-				if misc.capFpsEnabled == true then
-					if setfpscap then pcall(setfpscap, 15) end
-				end
-			end
-		end
-	end)
-
 	local TweenService = game:GetService("TweenService")
 	local UserInputService = game:GetService("UserInputService")
 	local RunService = game:GetService("RunService")
@@ -89,7 +68,7 @@ local success, err = pcall(function()
 	------------------------------------------------
 	-- 🧹 CLEANUP EXISTING INSTANCES
 	------------------------------------------------
-	local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("HipHub_CDID") or player.PlayerGui:FindFirstChild("HipHub")
+	local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("HipHub_UI") or player.PlayerGui:FindFirstChild("HipHub")
 	if oldGui then
 		oldGui:Destroy()
 	end
@@ -150,7 +129,7 @@ local success, err = pcall(function()
 	-- 🖥️ GUI ROOT SETUP
 	------------------------------------------------
 	local gui = Instance.new("ScreenGui")
-	gui.Name = "HipHub_CDID"
+	gui.Name = "HipHub_UI"
 	gui.ResetOnSpawn = false
 	gui.DisplayOrder = 2147483647
 	pcall(function()
@@ -268,11 +247,11 @@ local success, err = pcall(function()
 	hubTitle.Parent = topBar
 
 	local badge = Instance.new("TextLabel")
-	badge.Size = UDim2.new(0, 175, 0, 22)
+	badge.Size = UDim2.new(0, 140, 0, 22)
 	badge.Position = UDim2.new(0, 86, 0.5, -11)
 	badge.BackgroundColor3 = COLORS.accentViolet
 	badge.BackgroundTransparency = 0.25
-	badge.Text = "Car Driving Indonesia"
+	badge.Text = "⚽ Jump To Steal"
 	badge.TextColor3 = COLORS.textWhite
 	badge.Font = Enum.Font.GothamBold
 	badge.TextSize = 10
@@ -582,7 +561,7 @@ local success, err = pcall(function()
 		})
 
 		applyPadding(sectionCard, 10, 10, 8, 10)
-		local layout = applyListLayout(sectionCard, 6)
+		applyListLayout(sectionCard, 6)
 
 		local header = Instance.new("Frame")
 		header.Size = UDim2.new(1, 0, 0, 22)
@@ -852,7 +831,7 @@ local success, err = pcall(function()
 		optList.BackgroundTransparency = 1
 		optList.Parent = dropFrame
 
-		local optLayout = applyListLayout(optList, 3)
+		applyListLayout(optList, 3)
 
 		local isOpen = false
 		local selected = defaultOption or options[1]
@@ -1089,12 +1068,27 @@ local success, err = pcall(function()
 	------------------------------------------------
 	-- 🪟 CREATE INITIAL CORE TABS
 	------------------------------------------------
-	addTab("Main", "🏠", 1)
-	addTab("Farm", "💰", 2)
-	addTab("Vehicle", "🚗", 3)
-	addTab("Teleport", "📍", 4)
-	addTab("Visuals", "👁️", 5)
-	addTab("Settings", "⚙️", 6)
+	local mainTabFrame = addTab("Main", "🏠", 1)
+	local settingsTabFrame = addTab("Settings", "⚙️", 2)
+	local infoTabFrame = addTab("Info", "ℹ️", 3)
+
+	-- Main Tab: Clean Placeholder Section
+	local mainSection = addSection(mainTabFrame, "Main", 1)
+	addLabel(mainSection, "Script base initialized. Add game features here.", 1)
+
+	-- Info Tab: Script & Environment Diagnostics
+	local infoSection = addSection(infoTabFrame, "Information", 1)
+	addLabel(infoSection, "Title: HipHub Template", 1)
+	addLabel(infoSection, "User: " .. (player.DisplayName or player.Name) .. " (@" .. player.Name .. ")", 2)
+	addLabel(infoSection, "Game ID: " .. tostring(game.GameId), 3)
+	addLabel(infoSection, "Place ID: " .. tostring(game.PlaceId), 4)
+
+	local execName = "Unknown"
+	pcall(function()
+		local fn = identifyexecutor or getexecutorname
+		if fn then execName = fn() end
+	end)
+	addLabel(infoSection, "Executor: " .. tostring(execName), 5)
 
 	selectTab("Main")
 
@@ -1131,9 +1125,9 @@ local success, err = pcall(function()
 		SyncShadow = syncShadow
 	}
 
-	notify("HipHub CDID Loaded", "Welcome " .. player.DisplayName .. "!", 3, "success")
+	notify("HipHub Loaded", "Welcome, " .. player.DisplayName .. "!", 3, "success")
 end)
 
 if not success then
-	warn("[HipHub CDID UI Error]:", err)
+	warn("[HipHub UI Error]:", err)
 end

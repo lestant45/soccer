@@ -1,6 +1,6 @@
--- ⚙️ HipHub CDID — Settings & Configuration Manager
--- Handles config persistence, performance booster, UI toggle keybind, and settings tab UI
-
+-- ==============================================================================
+-- ⚙️ HipHub — Settings & Configuration Manager (Jump To Steal Soccer Players)
+-- ==============================================================================
 local success, err = pcall(function()
 	local UI = _G.HipHubUI
 	if not UI then return end
@@ -12,80 +12,39 @@ local success, err = pcall(function()
 	local Players = game:GetService("Players")
 	local player = Players.LocalPlayer
 
-	local CONFIG_FILE = "HipHub/cdid_config.json"
-	if isfile and not isfile(CONFIG_FILE) and isfile("cdid_config.json") then
-		CONFIG_FILE = "cdid_config.json"
+	local CONFIG_FILE = "HipHub/soccer_config.json"
+	if isfile and not isfile(CONFIG_FILE) and isfile("soccer_config.json") then
+		CONFIG_FILE = "soccer_config.json"
 	end
 
-	-- Default Configuration Schema
+	-- Default Configuration Schema for Soccer Game
 	local Config = {
-		main = {
-			walkSpeed = 16,
-			jumpPower = 50,
-			infiniteStamina = false,
-			noclip = false,
-			fly = false,
-			flySpeed = 50,
-			antiAfk = true,
-			antiRagdoll = true,
-			instantPrompt = true
+		UI = {
+			Title = "Jump To Steal Soccer Players",
+			ToggleKey = "RightShift"
 		},
-		farm = {
-			siLambat = false,
-			siLambatDelay = 1.0,
-			janjiJiwa = false,
-			janjiJiwaDelay = 1.2,
-			ems = false,
-			emsDelay = 1.5,
-			taxi = false,
-			truck = false,
-			bcaCourier = false,
-			bcaCourierDelay = 1.0,
-			bcaTargetEarning = 0,
-			bcaTweenSpeed = 125,
-			bcaTweenHeight = 0,
-			bcaArriveDist = 35,
-			bcaTargetAtm = "Auto",
-			antiStaff = false,
-			odometer = false,
-			odometerSpeed = 120,
-			autoClaimBox = true,
-			autoDailyQuest = true,
-			safeMode = true,
-			autoFlip = true
+		Farm = {
+			AutoCollectLuckyBlock = false,
+			AutoCollectEarnings = false,
+			AutoPlaceOpenLuckyBlock = false,
+			AutoPickupAllPlayers = false,
+			AutoUpgradePlayers = false,
+			AutoBuySpeedUpgrade = false,
+			AutoRebirth = false,
+			AutoSellBackpack = false
 		},
-		vehicle = {
-			speedMultiplier = 1.0,
-			torqueMultiplier = 1.0,
-			topSpeedOverride = 0,
-			instantBrake = false,
-			driftMode = false,
-			flyVehicle = false,
-			flyVehicleSpeed = 60,
-			noclipVehicle = false,
-			infiniteFuel = false,
-			autoRefuel = false,
-			autoFlipCar = true,
-			noCarCollision = false,
-			autoToll = false,
-			autoWash = false,
-			autoOil = false
+		Movement = {
+			MoveSpeedMultiplier = 1
 		},
-		visuals = {
-			carEsp = false,
-			playerEsp = false,
-			jobEsp = false,
-			dealershipEsp = false,
-			fullbright = false,
-			noFog = false,
-			speedometer = true
+		Visuals = {
+			LuckyBlockESP = false,
+			StandESP = false,
+			PlayerESP = false
 		},
-		settings = {
-			uiKeybind = "RightShift",
-			blackScreen = false,
+		Settings = {
+			autoSave = true,
 			capFps = 60,
-			lowGraphics = false,
-			autoSave = true
+			lowGraphics = false
 		}
 	}
 
@@ -101,6 +60,8 @@ local success, err = pcall(function()
 							for k, v in pairs(items) do
 								Config[category][k] = v
 							end
+						else
+							Config[category] = items
 						end
 					end
 				end
@@ -113,8 +74,7 @@ local success, err = pcall(function()
 			pcall(function()
 				if makefolder then pcall(makefolder, "HipHub") end
 				local encoded = HttpService:JSONEncode(Config)
-				writefile("HipHub/cdid_config.json", encoded)
-				UI.Notify("Config Saved", "Configuration successfully written to disk.", 2, "success")
+				writefile(CONFIG_FILE, encoded)
 			end)
 		end
 	end
@@ -126,12 +86,14 @@ local success, err = pcall(function()
 	------------------------------------------------
 	-- 🎨 BUILD SETTINGS TAB
 	------------------------------------------------
-	local settingsFrame = UI.tabs["Settings"].Frame
+	local settingsFrame = UI.tabs["Settings"] and UI.tabs["Settings"].Frame
+	if not settingsFrame then return end
 
 	-- Profile / Config Section
 	local configSec = UI.AddSection(settingsFrame, "Configuration Management", 1)
 	UI.AddButton(configSec, "💾 Save Configuration", function()
 		saveConfig()
+		UI.Notify("Config Saved", "Configuration saved to disk.", 2, "success")
 	end, 1)
 
 	UI.AddButton(configSec, "🔄 Reset Configuration to Default", function()
@@ -141,35 +103,22 @@ local success, err = pcall(function()
 		UI.Notify("Config Reset", "Default settings restored. Re-execute to refresh values.", 3, "warning")
 	end, 2)
 
-	UI.AddToggle(configSec, "Auto Save Changes", Config.settings.autoSave, function(v)
-		Config.settings.autoSave = v
+	UI.AddToggle(configSec, "Auto Save Changes", Config.Settings.autoSave, function(v)
+		Config.Settings.autoSave = v
 		if v then saveConfig() end
 	end, 3)
 
 	-- Performance & Boost Section
 	local perfSec = UI.AddSection(settingsFrame, "Performance & Optimization", 2)
 
-	UI.AddToggle(perfSec, "Black Screen (Low CPU/GPU for Overnight)", Config.settings.blackScreen, function(v)
-		Config.settings.blackScreen = v
-		pcall(function()
-			RunService:Set3dRenderingEnabled(not v)
-		end)
-		if v then
-			UI.Notify("Black Screen Enabled", "3D rendering disabled to save CPU/GPU.", 3, "success")
-		else
-			UI.Notify("Black Screen Disabled", "3D rendering restored.", 3, "success")
-		end
-		if Config.settings.autoSave then saveConfig() end
-	end, 1)
-
-	UI.AddSlider(perfSec, "FPS Limit Cap", 15, 240, Config.settings.capFps, function(v)
-		Config.settings.capFps = v
+	UI.AddSlider(perfSec, "FPS Limit Cap", 15, 240, Config.Settings.capFps or 60, function(v)
+		Config.Settings.capFps = v
 		if setfpscap then pcall(setfpscap, v) end
-		if Config.settings.autoSave then saveConfig() end
-	end, 2, " FPS")
+		if Config.Settings.autoSave then saveConfig() end
+	end, 1, " FPS")
 
-	UI.AddToggle(perfSec, "Low Graphics / Anti-Lag", Config.settings.lowGraphics, function(v)
-		Config.settings.lowGraphics = v
+	UI.AddToggle(perfSec, "Low Graphics / Anti-Lag", Config.Settings.lowGraphics or false, function(v)
+		Config.Settings.lowGraphics = v
 		pcall(function()
 			for _, obj in pairs(workspace:GetDescendants()) do
 				if v then
@@ -191,12 +140,14 @@ local success, err = pcall(function()
 		if v then
 			UI.Notify("Anti-Lag Enabled", "Optimized textures and world rendering.", 2, "success")
 		end
-	end, 3)
+		if Config.Settings.autoSave then saveConfig() end
+	end, 2)
 
 	-- UI Controls & Keybinds
 	local uiSec = UI.AddSection(settingsFrame, "UI Controls & Keybind", 3)
 
-	local currentKey = Enum.KeyCode[Config.settings.uiKeybind] or Enum.KeyCode.RightShift
+	local currentKeyName = Config.UI.ToggleKey or "RightShift"
+	local currentKey = Enum.KeyCode[currentKeyName] or Enum.KeyCode.RightShift
 	local keybindBtn
 	keybindBtn = UI.AddButton(uiSec, "Toggle UI Keybind: [" .. currentKey.Name .. "]", function()
 		keybindBtn.Text = "Press any key to bind..."
@@ -205,10 +156,10 @@ local success, err = pcall(function()
 			if input.UserInputType == Enum.UserInputType.Keyboard then
 				conn:Disconnect()
 				currentKey = input.KeyCode
-				Config.settings.uiKeybind = currentKey.Name
+				Config.UI.ToggleKey = currentKey.Name
 				keybindBtn.Text = "Toggle UI Keybind: [" .. currentKey.Name .. "]"
 				UI.Notify("Keybind Updated", "UI toggle set to " .. currentKey.Name, 2, "success")
-				if Config.settings.autoSave then saveConfig() end
+				if Config.Settings.autoSave then saveConfig() end
 			end
 		end)
 	end, 1)
@@ -227,5 +178,5 @@ local success, err = pcall(function()
 end)
 
 if not success then
-	warn("[HipHub CDID Settings Error]:", err)
+	warn("[HipHub Settings Error]:", err)
 end
