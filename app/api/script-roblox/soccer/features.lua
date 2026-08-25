@@ -163,13 +163,35 @@ end
 -- Helper: Resolve Lucky Block Rarity and Mutation
 -- ------------------------------------------------------------------------------
 function Features.ResolveBlockRarity(block)
-    local sId = block:GetAttribute("SlimeId")
-    if sId and Database.Slimes[tostring(sId)] then
-        return Database.Slimes[tostring(sId)].Rarity or "Common"
+    if not block then return "Common" end
+    local sId = block:GetAttribute("SlimeId") or block:GetAttribute("slimeID") or block:GetAttribute("slimeId")
+    if sId and Database and Database.Slimes and Database.Slimes[tostring(sId)] then
+        local r = Database.Slimes[tostring(sId)].Rarity
+        if r then
+            if r == "Slime God" then return "Soccer God" end
+            return r
+        end
     end
-    for name, slime in pairs(Database.Slimes) do
-        if block.Name:find(slime.Name) or slime.Name:find(block.Name) then
-            return slime.Rarity or "Common"
+
+    local cleanName = block.Name:gsub(" Lucky Block", ""):gsub("Lucky Block", ""):gsub("^%s*(.-)%s*$", "%1")
+    if cleanName == "Slime God" or cleanName == "Soccer God" then
+        return "Soccer God"
+    end
+
+    local knownRarities = { "LIMITED", "Japan", "Icons", "Spain", "Champions", "OG", "Exclusive", "Divine", "Soccer God", "Secret", "Mythic", "Legendary", "Epic", "Rare", "Common" }
+    for _, r in ipairs(knownRarities) do
+        if cleanName:lower() == r:lower() or block.Name:lower():find(r:lower()) then
+            return r
+        end
+    end
+
+    if Database and Database.Slimes then
+        for _, slime in pairs(Database.Slimes) do
+            if block.Name:find(slime.Name) or slime.Name:find(block.Name) then
+                local r = slime.Rarity or "Common"
+                if r == "Slime God" then return "Soccer God" end
+                return r
+            end
         end
     end
     return "Common"
@@ -384,17 +406,36 @@ function Features.CollectLuckyBlocksStep()
     local slimesFolder = Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("Slimes")
     local candidates = {}
 
-    local selectedRarity = Features.State.FilterRarity or "All"
-    local selectedMutation = Features.State.FilterMutation or "All"
+    local selectedRarity = Features.State.FilterRarity
+    local selectedMutation = Features.State.FilterMutation
+
+    local function isRarityAll(val)
+        if not val or val == "All" then return true end
+        if typeof(val) == "table" then
+            if #val == 0 and not next(val) then return true end
+            if val["All"] or table.find(val, "All") then return true end
+        end
+        return false
+    end
+
+    local function isMutationAll(val)
+        if not val or val == "All" then return true end
+        if typeof(val) == "table" then
+            if #val == 0 and not next(val) then return true end
+            if val["All"] or table.find(val, "All") then return true end
+        end
+        return false
+    end
 
     local function matchesFilter(block)
         local blockRarity = Features.ResolveBlockRarity(block)
         local blockRarityLower = string.lower(blockRarity)
         local blockMutation = Features.ResolveMutation(block)
+        local blockMutationLower = string.lower(blockMutation)
 
-        -- Check Rarity with Multi-Select Support
+        -- Check Rarity
         local rarityMatch = false
-        if not selectedRarity or selectedRarity == "All" then
+        if isRarityAll(selectedRarity) then
             rarityMatch = true
         elseif typeof(selectedRarity) == "string" then
             if selectedRarity == "Soccer God" or selectedRarity == "Slime God" then
@@ -403,40 +444,35 @@ function Features.CollectLuckyBlocksStep()
                 rarityMatch = (string.lower(selectedRarity) == blockRarityLower)
             end
         elseif typeof(selectedRarity) == "table" then
-            if selectedRarity["All"] or table.find(selectedRarity, "All") then
-                rarityMatch = true
-            else
-                for _, r in ipairs(selectedRarity) do
-                    local rLower = string.lower(tostring(r))
-                    if (rLower == "soccer god" or rLower == "slime god") and (blockRarityLower == "soccer god" or blockRarityLower == "slime god") then
-                        rarityMatch = true
-                        break
-                    elseif rLower == blockRarityLower then
-                        rarityMatch = true
-                        break
-                    end
+            for _, r in ipairs(selectedRarity) do
+                local rLower = string.lower(tostring(r))
+                if (rLower == "soccer god" or rLower == "slime god") and (blockRarityLower == "soccer god" or blockRarityLower == "slime god") then
+                    rarityMatch = true
+                    break
+                elseif rLower == blockRarityLower then
+                    rarityMatch = true
+                    break
                 end
-                if not rarityMatch then
-                    for k, v in pairs(selectedRarity) do
-                        if v == true then
-                            local kLower = string.lower(tostring(k))
-                            if (kLower == "soccer god" or kLower == "slime god") and (blockRarityLower == "soccer god" or blockRarityLower == "slime god") then
-                                rarityMatch = true
-                                break
-                            elseif kLower == blockRarityLower then
-                                rarityMatch = true
-                                break
-                            end
+            end
+            if not rarityMatch then
+                for k, v in pairs(selectedRarity) do
+                    if v == true then
+                        local kLower = string.lower(tostring(k))
+                        if (kLower == "soccer god" or kLower == "slime god") and (blockRarityLower == "soccer god" or blockRarityLower == "slime god") then
+                            rarityMatch = true
+                            break
+                        elseif kLower == blockRarityLower then
+                            rarityMatch = true
+                            break
                         end
                     end
                 end
             end
         end
 
-        -- Check Mutation with Multi-Select Support
-        local blockMutationLower = string.lower(blockMutation)
+        -- Check Mutation
         local mutationMatch = false
-        if not selectedMutation or selectedMutation == "All" then
+        if isMutationAll(selectedMutation) then
             mutationMatch = true
         elseif typeof(selectedMutation) == "string" then
             local selMutLower = string.lower(selectedMutation)
@@ -446,30 +482,26 @@ function Features.CollectLuckyBlocksStep()
                 mutationMatch = (selMutLower == blockMutationLower)
             end
         elseif typeof(selectedMutation) == "table" then
-            if selectedMutation["All"] or table.find(selectedMutation, "All") then
-                mutationMatch = true
-            else
-                for _, m in ipairs(selectedMutation) do
-                    local mLower = string.lower(tostring(m))
-                    if (mLower == "gold" or mLower == "golden") and (blockMutationLower == "gold" or blockMutationLower == "golden") then
-                        mutationMatch = true
-                        break
-                    elseif mLower == blockMutationLower then
-                        mutationMatch = true
-                        break
-                    end
+            for _, m in ipairs(selectedMutation) do
+                local mLower = string.lower(tostring(m))
+                if (mLower == "gold" or mLower == "golden") and (blockMutationLower == "gold" or blockMutationLower == "golden") then
+                    mutationMatch = true
+                    break
+                elseif mLower == blockMutationLower then
+                    mutationMatch = true
+                    break
                 end
-                if not mutationMatch then
-                    for k, v in pairs(selectedMutation) do
-                        if v == true then
-                            local kLower = string.lower(tostring(k))
-                            if (kLower == "gold" or kLower == "golden") and (blockMutationLower == "gold" or blockMutationLower == "golden") then
-                                mutationMatch = true
-                                break
-                            elseif kLower == blockMutationLower then
-                                mutationMatch = true
-                                break
-                            end
+            end
+            if not mutationMatch then
+                for k, v in pairs(selectedMutation) do
+                    if v == true then
+                        local kLower = string.lower(tostring(k))
+                        if (kLower == "gold" or kLower == "golden") and (blockMutationLower == "gold" or blockMutationLower == "golden") then
+                            mutationMatch = true
+                            break
+                        elseif kLower == blockMutationLower then
+                            mutationMatch = true
+                            break
                         end
                     end
                 end
@@ -479,13 +511,16 @@ function Features.CollectLuckyBlocksStep()
         return rarityMatch and mutationMatch
     end
 
-    if slimesFolder then
-        for _, block in ipairs(slimesFolder:GetChildren()) do
+    local candidateList = {}
+    local function checkContainer(container)
+        if not container then return end
+        for _, block in ipairs(container:GetChildren()) do
             if block:IsA("Model") and matchesFilter(block) then
                 local prompt = block:FindFirstChildWhichIsA("ProximityPrompt", true)
                 if prompt and (prompt.Name == "StealPrompt" or prompt.ActionText:lower():find("collect")) then
                     local part = prompt.Parent:IsA("BasePart") and prompt.Parent or block.PrimaryPart or block:FindFirstChild("RootPart")
-                    if part then
+                    if part and not table.find(candidateList, prompt) then
+                        table.insert(candidateList, prompt)
                         table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
                     end
                 end
@@ -493,14 +528,20 @@ function Features.CollectLuckyBlocksStep()
         end
     end
 
-    -- Also check general workspace prompts if filtering is "All"
-    local isAllSelected = (selectedRarity == "All") or (typeof(selectedRarity) == "table" and (selectedRarity["All"] or table.find(selectedRarity, "All")))
-    if isAllSelected and selectedMutation == "All" then
+    checkContainer(Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("Slimes"))
+    checkContainer(Workspace:FindFirstChild("Slimes"))
+
+    -- Also search workspace if filters are broad or no candidates found yet
+    if #candidates == 0 or (isRarityAll(selectedRarity) and isMutationAll(selectedMutation)) then
         for _, prompt in ipairs(Workspace:GetDescendants()) do
-            if prompt:IsA("ProximityPrompt") and prompt.Name == "StealPrompt" and prompt.ActionText:lower():find("collect") then
-                local part = prompt.Parent:IsA("BasePart") and prompt.Parent or prompt.Parent.Parent:FindFirstChild("RootPart")
-                if part and not table.find(candidates, prompt) then
-                    table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
+            if prompt:IsA("ProximityPrompt") and (prompt.Name == "StealPrompt" or prompt.ActionText:lower():find("collect")) then
+                local model = prompt:FindFirstAncestorOfClass("Model")
+                if (not model or matchesFilter(model)) and not table.find(candidateList, prompt) then
+                    local part = prompt.Parent:IsA("BasePart") and prompt.Parent or (model and model.PrimaryPart)
+                    if part then
+                        table.insert(candidateList, prompt)
+                        table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
+                    end
                 end
             end
         end
@@ -513,48 +554,50 @@ function Features.CollectLuckyBlocksStep()
 
     isCollectingLB = true
     task.spawn(function()
-        local target = candidates[1]
-        local myPlot = Features.GetMyPlot()
-        local plotPos = Features.GetPlotPosition(myPlot)
-        local returnPos = plotPos and (plotPos + Vector3.new(0, 3, 0)) or (root and root.Position)
+        pcall(function()
+            local target = candidates[1]
+            local myPlot = Features.GetMyPlot()
+            local plotPos = Features.GetPlotPosition(myPlot)
+            local returnPos = plotPos and (plotPos + Vector3.new(0, 3, 0)) or (root and root.Position)
 
-        if target and target.prompt and target.prompt.Parent and root and root.Parent then
-            local initialCount = Features.GetBackpackCount()
-            local promptHold = target.prompt.HoldDuration or 0.5
+            if target and target.prompt and target.prompt.Parent and root and root.Parent then
+                local initialCount = Features.GetBackpackCount()
+                local promptHold = target.prompt.HoldDuration or 0.5
 
-            -- Teleport stably to lucky block and freeze physics velocity
-            root.CFrame = target.part.CFrame + Vector3.new(0, 1.2, 0)
-            pcall(function()
-                root.AssemblyLinearVelocity = Vector3.zero
-                root.AssemblyAngularVelocity = Vector3.zero
-            end)
-            task.wait(0.06)
-
-            -- Actively trigger prompt until block is collected or short timeout
-            local timeout = os.clock() + math.max(promptHold + 0.25, 0.6)
-            while os.clock() < timeout and target.prompt and target.prompt.Parent and root and root.Parent do
-                if Features.GetBackpackCount() > initialCount then
-                    break
-                end
+                -- Teleport stably to lucky block and freeze physics velocity
+                root.CFrame = target.part.CFrame + Vector3.new(0, 1.2, 0)
                 pcall(function()
-                    if fireproximityprompt then
-                        fireproximityprompt(target.prompt, promptHold)
-                        fireproximityprompt(target.prompt, 0)
-                        fireproximityprompt(target.prompt)
-                    end
+                    root.AssemblyLinearVelocity = Vector3.zero
+                    root.AssemblyAngularVelocity = Vector3.zero
                 end)
-                task.wait(0.08)
-            end
+                task.wait(0.06)
 
-            task.wait(0.06)
+                -- Actively trigger prompt until block is collected or short timeout
+                local timeout = os.clock() + math.max(promptHold + 0.25, 0.6)
+                while os.clock() < timeout and target.prompt and target.prompt.Parent and root and root.Parent do
+                    if Features.GetBackpackCount() > initialCount then
+                        break
+                    end
+                    pcall(function()
+                        if fireproximityprompt then
+                            fireproximityprompt(target.prompt, promptHold)
+                            fireproximityprompt(target.prompt, 0)
+                            fireproximityprompt(target.prompt)
+                        end
+                    end)
+                    task.wait(0.08)
+                end
 
-            -- If AutoPlaceOpenLuckyBlock is enabled, deposit to empty stands
-            if Features.State.AutoPlaceOpenLuckyBlock then
-                Features.DepositAndOpenCarriedLuckyBlocks()
-            elseif returnPos and root and root.Parent then
-                root.CFrame = CFrame.new(returnPos)
+                task.wait(0.06)
+
+                -- If AutoPlaceOpenLuckyBlock is enabled, deposit to empty stands
+                if Features.State.AutoPlaceOpenLuckyBlock then
+                    Features.DepositAndOpenCarriedLuckyBlocks()
+                elseif returnPos and root and root.Parent then
+                    root.CFrame = CFrame.new(returnPos)
+                end
             end
-        end
+        end)
         task.wait(0.2)
         isCollectingLB = false
     end)
