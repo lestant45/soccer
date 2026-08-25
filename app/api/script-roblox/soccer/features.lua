@@ -697,4 +697,3 @@ function Features.Init()
 end
 
 Features.Init()
-return Features
