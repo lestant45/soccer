@@ -1225,10 +1225,10 @@ local success, err = pcall(function()
 	------------------------------------------------
 	-- 🪟 CREATE INITIAL CORE TABS
 	------------------------------------------------
-	local mainTabFrame = addTab("Main", "🏠", 1)
-	local visualsTabFrame = addTab("Visuals", "👁️", 2)
-	local settingsTabFrame = addTab("Settings", "⚙️", 3)
-	local infoTabFrame = addTab("Info", "ℹ️", 4)
+	local mainTabFrame = addTab("Main", "", 1)
+	local visualsTabFrame = addTab("Visuals", "", 2)
+	local settingsTabFrame = addTab("Settings", "", 3)
+	local infoTabFrame = addTab("Info", "", 4)
 
 	-- Main Tab: Clean Placeholder Section
 	local mainSection = addSection(mainTabFrame, "Main", 1)

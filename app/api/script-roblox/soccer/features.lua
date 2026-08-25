@@ -106,15 +106,11 @@ end
 -- Helper: Get Current Backpack Count & Max Capacity
 -- ------------------------------------------------------------------------------
 function Features.GetBackpackCount()
-    local data = Features.GetPlayerData()
-    if data and data.Inventory and typeof(data.Inventory) == "table" then
-        return #data.Inventory
-    end
     local count = 0
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if backpack then
         for _, item in ipairs(backpack:GetChildren()) do
-            if item:IsA("Tool") and (item:GetAttribute("slimeUID") ~= nil or item:GetAttribute("slimeID") ~= nil or item.Name:lower():find("lucky block")) then
+            if item:IsA("Tool") and (item:GetAttribute("slimeUID") ~= nil or item:GetAttribute("slimeID") ~= nil or item.Name:lower():find("lucky block")) and not item:GetAttribute("CoilGear") then
                 count = count + 1
             end
         end
@@ -122,7 +118,7 @@ function Features.GetBackpackCount()
     local char = LocalPlayer.Character
     if char then
         for _, item in ipairs(char:GetChildren()) do
-            if item:IsA("Tool") and (item:GetAttribute("slimeUID") ~= nil or item:GetAttribute("slimeID") ~= nil or item.Name:lower():find("lucky block")) then
+            if item:IsA("Tool") and (item:GetAttribute("slimeUID") ~= nil or item:GetAttribute("slimeID") ~= nil or item.Name:lower():find("lucky block")) and not item:GetAttribute("CoilGear") then
                 count = count + 1
             end
         end
@@ -133,7 +129,7 @@ end
 function Features.GetMaxBackpackLimit()
     local data = Features.GetPlayerData()
     if data and data.BackpackLevel then
-        return 10 + (tonumber(data.BackpackLevel) or 0) * 10
+        return 20 + (tonumber(data.BackpackLevel) or 0) * 20
     end
     return 110
 end
@@ -143,7 +139,7 @@ function Features.GetCarriedCount()
     local char = LocalPlayer.Character
     if char then
         for _, item in ipairs(char:GetChildren()) do
-            if item:IsA("Tool") and (item:GetAttribute("slimeUID") ~= nil or item:GetAttribute("slimeID") ~= nil or item.Name:lower():find("lucky block")) then
+            if item:IsA("Tool") and (item:GetAttribute("slimeUID") ~= nil or item:GetAttribute("slimeID") ~= nil or item.Name:lower():find("lucky block")) and not item:GetAttribute("CoilGear") then
                 count = count + 1
             end
         end
@@ -385,22 +381,26 @@ function Features.CollectLuckyBlocksStep()
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    local backpackCount = Features.GetBackpackCount()
-    local maxBackpack = Features.GetMaxBackpackLimit()
-
-    -- Check if backpack is completely full
-    if backpackCount >= maxBackpack then
-        if Features.State.AutoPlaceOpenLuckyBlock then
+    -- If auto place or auto sell is enabled, process carried blocks when inventory gets full
+    if Features.State.AutoPlaceOpenLuckyBlock then
+        local backpackCount = Features.GetBackpackCount()
+        local maxBackpack = Features.GetMaxBackpackLimit()
+        if backpackCount >= maxBackpack then
             isCollectingLB = true
             task.spawn(function()
                 Features.DepositAndOpenCarriedLuckyBlocks()
                 task.wait(0.3)
                 isCollectingLB = false
             end)
-        elseif Features.State.AutoSellBackpack then
-            Features.SellFromBackpackStep()
+            return
         end
-        return
+    elseif Features.State.AutoSellBackpack then
+        local backpackCount = Features.GetBackpackCount()
+        local maxBackpack = Features.GetMaxBackpackLimit()
+        if backpackCount >= maxBackpack then
+            Features.SellFromBackpackStep()
+            task.wait(0.3)
+        end
     end
 
     local slimesFolder = Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("Slimes")
