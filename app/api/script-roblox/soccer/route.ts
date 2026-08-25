@@ -377,13 +377,22 @@ export async function GET(request: NextRequest) {
   try {
     const userAgent = (request.headers.get("user-agent") || "").toLowerCase();
     const isRoblox =
-      userAgent.includes("roblox") &&
-      !userAgent.includes("curl") &&
-      !userAgent.includes("postman") &&
-      !userAgent.includes("insomnia") &&
-      !userAgent.includes("python") &&
-      !userAgent.includes("wget") &&
-      !userAgent.includes("axios");
+      userAgent.includes("roblox") ||
+      userAgent.includes("okhttp") ||
+      userAgent.includes("delta") ||
+      userAgent.includes("codex") ||
+      userAgent.includes("hydrogen") ||
+      userAgent.includes("arceus") ||
+      userAgent.includes("vega") ||
+      userAgent.includes("dalvik") ||
+      userAgent.includes("darwin") ||
+      userAgent.includes("executor") ||
+      (!userAgent.includes("curl") &&
+        !userAgent.includes("postman") &&
+        !userAgent.includes("insomnia") &&
+        !userAgent.includes("python") &&
+        !userAgent.includes("wget") &&
+        !userAgent.includes("axios"));
 
     // Detect browser headers to block direct browser access even if User-Agent is spoofed
     const isBrowser =
@@ -454,7 +463,7 @@ pcall(function()
     encodedExecutor = game:GetService("HttpService"):UrlEncode(executor)
 end)
 
-local url = "${baseUrl}/api/script-roblox/cardrive?payload=true&hwid=" .. tostring(hwid) .. "&username=" .. tostring(playername) .. "&gameId=" .. tostring(game.GameId) .. "&placeId=" .. tostring(game.PlaceId) .. "&executor=" .. tostring(encodedExecutor) .. "&cb=" .. tostring(math.random(100000, 999999))
+local url = "${baseUrl}/api/script-roblox/soccer?payload=true&hwid=" .. tostring(hwid) .. "&username=" .. tostring(playername) .. "&gameId=" .. tostring(game.GameId) .. "&placeId=" .. tostring(game.PlaceId) .. "&executor=" .. tostring(encodedExecutor) .. "&cb=" .. tostring(math.random(100000, 999999))
 local success, content
 for i = 1, 3 do
     success, content = pcall(function()
@@ -606,7 +615,7 @@ func()
     }
 
     // Serving main script payload (Keyless)
-    const scriptDir = path.join(process.cwd(), "app/api/script-roblox/cardrive");
+    const scriptDir = path.join(process.cwd(), "app/api/script-roblox/soccer");
     const uiPath = path.join(scriptDir, "ui.lua");
     const featuresPath = path.join(scriptDir, "features.lua");
     const settingsPath = path.join(scriptDir, "settings.lua");
