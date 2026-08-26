@@ -194,8 +194,20 @@ local success, err = pcall(function()
 			if v then UI.Notify("Auto Place & Open", "Placing & Opening Lucky Blocks on stands...", 2, "success") end
 		end, 4)
 
-		-- Section 2: Economy & Income
-		local econSec = UI.AddSection(mainTabFrame, "💰 Economy & Collection", 2)
+		-- Section 2: Soccer Minigames & Penalty
+		local miniSec = UI.AddSection(mainTabFrame, "⚽ Soccer Minigames & Penalty", 2)
+
+		UI.AddToggle(miniSec, "Auto Penalty Kick", Config.Farm.AutoPenaltyKick or false, function(v)
+			Features.State.AutoPenaltyKick = v
+			Config.Farm.AutoPenaltyKick = v
+			if Config.Settings.autoSave then saveConfig() end
+			if v then
+				UI.Notify("Auto Penalty", "Auto Penalty Kick active - scoring goals automatically!", 2, "success")
+			end
+		end, 1)
+
+		-- Section 3: Economy & Income
+		local econSec = UI.AddSection(mainTabFrame, "💰 Economy & Collection", 3)
 
 		UI.AddToggle(econSec, "Auto Collect Earnings", Config.Farm.AutoCollectEarnings or false, function(v)
 			Features.State.AutoCollectEarnings = v
@@ -215,38 +227,51 @@ local success, err = pcall(function()
 			UI.Notify("Sold Inventory", "Sold all players in backpack.", 2, "success")
 		end, 3)
 
-		-- Section 3: Progression, Players & Upgrades
-		local progSec = UI.AddSection(mainTabFrame, "⭐ Progression & Upgrades", 3)
+		-- Section 4: Progression, Jump Upgrades & Players
+		local progSec = UI.AddSection(mainTabFrame, "⭐ Progression & Jump Upgrades", 4)
 
-		UI.AddToggle(progSec, "Auto Buy Speed Upgrade", Config.Farm.AutoBuySpeedUpgrade or false, function(v)
+		local isJumpUpgradeOn = Config.Farm.AutoBuyJumpUpgrade or Config.Farm.AutoBuySpeedUpgrade or false
+		UI.AddToggle(progSec, "Auto Buy Jump Upgrade", isJumpUpgradeOn, function(v)
+			Features.State.AutoBuyJumpUpgrade = v
 			Features.State.AutoBuySpeedUpgrade = v
+			Config.Farm.AutoBuyJumpUpgrade = v
 			Config.Farm.AutoBuySpeedUpgrade = v
 			if Config.Settings.autoSave then saveConfig() end
+			if v then UI.Notify("Auto Buy Jump", "Upgrading Jump automatically (" .. tostring(Features.State.JumpBuyAmount or "10 (Instant)") .. ")", 2, "success") end
 		end, 1)
+
+		local jumpAmountOptions = { "10 (Instant)", "5", "1" }
+		local defaultJumpAmt = Config.Farm.JumpBuyAmount or "10 (Instant)"
+		UI.AddDropdown(progSec, "Jump Buy Amount", jumpAmountOptions, defaultJumpAmt, function(selected)
+			Features.State.JumpBuyAmount = selected
+			Config.Farm.JumpBuyAmount = selected
+			if Config.Settings.autoSave then saveConfig() end
+			UI.Notify("Jump Buy Mode", "Buy amount set to: " .. selected, 2, "success")
+		end, 2)
 
 		UI.AddToggle(progSec, "Auto Upgrade Soccer Players", Config.Farm.AutoUpgradePlayers or false, function(v)
 			Features.State.AutoUpgradePlayers = v
 			Config.Farm.AutoUpgradePlayers = v
 			if Config.Settings.autoSave then saveConfig() end
-		end, 2)
+		end, 3)
 
 		UI.AddToggle(progSec, "Auto Rebirth", Config.Farm.AutoRebirth or false, function(v)
 			Features.State.AutoRebirth = v
 			Config.Farm.AutoRebirth = v
 			if Config.Settings.autoSave then saveConfig() end
 			if v then UI.Notify("Auto Rebirth", "Auto-rebirthing when jump requirements are met.", 2, "success") end
-		end, 3)
+		end, 4)
 
 		UI.AddToggle(progSec, "Auto Pick Up All Soccer Players", Config.Farm.AutoPickupAllPlayers or false, function(v)
 			Features.State.AutoPickupAllPlayers = v
 			Config.Farm.AutoPickupAllPlayers = v
 			if Config.Settings.autoSave then saveConfig() end
-		end, 4)
+		end, 5)
 
 		UI.AddButton(progSec, "🧤 Pick Up All My Soccer Players Now", function()
 			Features.PickupAllSoccerPlayersStep()
 			UI.Notify("Picked Up", "Retrieved soccer players from plot.", 2, "success")
-		end, 5)
+		end, 6)
 	end
 
 	------------------------------------------------

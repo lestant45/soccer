@@ -19,7 +19,10 @@ Features.State = {
     AutoPlaceOpenLuckyBlock = false,
     AutoPickupAllPlayers = false,
     AutoUpgradePlayers = false,
-    AutoBuySpeedUpgrade = false,
+    AutoBuyJumpUpgrade = false,
+    AutoBuySpeedUpgrade = false, -- Backwards compatibility alias
+    JumpBuyAmount = "10 (Instant)", -- "1", "5", "10 (Instant)"
+    AutoPenaltyKick = false,
     AutoRebirth = false,
     AutoSellBackpack = false,
     MoveSpeedMultiplier = 1, -- 1-10 input, capped at 3x for safety
@@ -44,6 +47,8 @@ local PlaceSlimeRemote = Remotes:WaitForChild("Place Slime")
 local PickupSlimeRemote = Remotes:WaitForChild("Pickup Slime")
 local UpgradeSlimeRemote = Remotes:WaitForChild("Upgrade Slime")
 local StealSlimeRemote = Remotes:FindFirstChild("Steal Rainbow Slime")
+local PenaltyMinigameAction = Remotes:FindFirstChild("Penalty Minigame Action")
+local PenaltyMinigameState = Remotes:FindFirstChild("Penalty Minigame State")
 
 -- Database references
 local SharedModules = ReplicatedStorage:WaitForChild("SharedModules")
@@ -156,63 +161,100 @@ function Features.GetMaxCarryLimit()
 end
 
 -- ------------------------------------------------------------------------------
--- Helper: Resolve Lucky Block Rarity and Mutation
+-- Helper: High-Performance Caching for Block Rarity & Mutation Resolution
 -- ------------------------------------------------------------------------------
+local rarityCache = setmetatable({}, { __mode = "k" })
+local mutationCache = setmetatable({}, { __mode = "k" })
+
 function Features.ResolveBlockRarity(block)
     if not block then return "Common" end
+    local cached = rarityCache[block]
+    if cached then return cached end
+
     local sId = block:GetAttribute("SlimeId") or block:GetAttribute("slimeID") or block:GetAttribute("slimeId")
     if sId and Database and Database.Slimes and Database.Slimes[tostring(sId)] then
         local r = Database.Slimes[tostring(sId)].Rarity
         if r then
-            if r == "Slime God" then return "Soccer God" end
-            return r
+            local res = (r == "Slime God") and "Soccer God" or r
+            rarityCache[block] = res
+            return res
         end
     end
 
     local cleanName = block.Name:gsub(" Lucky Block", ""):gsub("Lucky Block", ""):gsub("^%s*(.-)%s*$", "%1")
     if cleanName == "Slime God" or cleanName == "Soccer God" then
+        rarityCache[block] = "Soccer God"
         return "Soccer God"
     end
 
     local knownRarities = { "LIMITED", "Japan", "Icons", "Spain", "Champions", "OG", "Exclusive", "Divine", "Soccer God", "Secret", "Mythic", "Legendary", "Epic", "Rare", "Common" }
     for _, r in ipairs(knownRarities) do
-        if cleanName:lower() == r:lower() or block.Name:lower():find(r:lower()) then
+        if cleanName:lower() == r:lower() or block.Name:lower():find(r:lower(), 1, true) then
+            rarityCache[block] = r
             return r
         end
     end
 
     if Database and Database.Slimes then
         for _, slime in pairs(Database.Slimes) do
-            if block.Name:find(slime.Name) or slime.Name:find(block.Name) then
+            if block.Name:find(slime.Name, 1, true) or slime.Name:find(block.Name, 1, true) then
                 local r = slime.Rarity or "Common"
-                if r == "Slime God" then return "Soccer God" end
-                return r
+                local res = (r == "Slime God") and "Soccer God" or r
+                rarityCache[block] = res
+                return res
             end
         end
     end
+
+    rarityCache[block] = "Common"
     return "Common"
 end
 
 function Features.ResolveMutation(model)
+    if not model then return "None" end
+    local cached = mutationCache[model]
+    if cached then return cached end
+
     local mut = model:GetAttribute("Mutation") or model:GetAttribute("mutation") or model:GetAttribute("Variant")
     if mut and mut ~= "" and mut ~= "Default" then
-        return tostring(mut)
+        local res = tostring(mut)
+        mutationCache[model] = res
+        return res
     end
-    if model:FindFirstChild("RainbowEffect") or model.Name:lower():find("rainbow") then
+    if model:FindFirstChild("RainbowEffect") or model.Name:lower():find("rainbow", 1, true) then
+        mutationCache[model] = "Rainbow"
         return "Rainbow"
     end
-    if model.Name:lower():find("gold") then
+    if model.Name:lower():find("gold", 1, true) then
+        mutationCache[model] = "Gold"
         return "Gold"
     end
-    if model.Name:lower():find("volcanic") then
+    if model.Name:lower():find("volcanic", 1, true) then
+        mutationCache[model] = "Volcanic"
         return "Volcanic"
     end
-    if model.Name:lower():find("cursed") then
+    if model.Name:lower():find("cursed", 1, true) then
+        mutationCache[model] = "Cursed"
         return "Cursed"
     end
-    if model.Name:lower():find("ghost") then
+    if model.Name:lower():find("ghost", 1, true) then
+        mutationCache[model] = "Ghost"
         return "Ghost"
     end
+    if model.Name:lower():find("diamond", 1, true) then
+        mutationCache[model] = "Diamond"
+        return "Diamond"
+    end
+    if model.Name:lower():find("shiny", 1, true) then
+        mutationCache[model] = "Shiny"
+        return "Shiny"
+    end
+    if model.Name:lower():find("neon", 1, true) then
+        mutationCache[model] = "Neon"
+        return "Neon"
+    end
+
+    mutationCache[model] = "None"
     return "None"
 end
 
@@ -372,7 +414,7 @@ function Features.DepositAndOpenCarriedLuckyBlocks()
 end
 
 -- ------------------------------------------------------------------------------
--- Feature 1: Auto Collect Lucky Block (With Carry Limit Check & Rarity/Mutation Filters)
+-- Feature 1: Auto Collect Lucky Block (Optimized & Zero Lag with Mutation Filtering)
 -- ------------------------------------------------------------------------------
 local isCollectingLB = false
 function Features.CollectLuckyBlocksStep()
@@ -403,149 +445,121 @@ function Features.CollectLuckyBlocksStep()
         end
     end
 
-    local slimesFolder = Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("Slimes")
-    local candidates = {}
+    local rawRarity = Features.State.FilterRarity
+    local rawMutation = Features.State.FilterMutation
 
-    local selectedRarity = Features.State.FilterRarity
-    local selectedMutation = Features.State.FilterMutation
-
-    local function isRarityAll(val)
-        if not val or val == "All" then return true end
-        if typeof(val) == "table" then
-            if #val == 0 and not next(val) then return true end
-            if val["All"] or table.find(val, "All") then return true end
+    -- Pre-calculate fast O(1) filter lookup sets
+    local allowAllRarities = (not rawRarity) or (rawRarity == "All")
+    local raritySet = {}
+    if not allowAllRarities then
+        if typeof(rawRarity) == "string" then
+            if rawRarity == "All" then
+                allowAllRarities = true
+            else
+                raritySet[string.lower(rawRarity)] = true
+                if rawRarity == "Soccer God" or rawRarity == "Slime God" then
+                    raritySet["soccer god"] = true
+                    raritySet["slime god"] = true
+                end
+            end
+        elseif typeof(rawRarity) == "table" then
+            for k, v in pairs(rawRarity) do
+                local name = typeof(k) == "number" and tostring(v) or tostring(k)
+                local nameLower = string.lower(name)
+                if nameLower == "all" then
+                    allowAllRarities = true
+                    break
+                end
+                raritySet[nameLower] = true
+                if nameLower == "soccer god" or nameLower == "slime god" then
+                    raritySet["soccer god"] = true
+                    raritySet["slime god"] = true
+                end
+            end
         end
-        return false
     end
 
-    local function isMutationAll(val)
-        if not val or val == "All" then return true end
-        if typeof(val) == "table" then
-            if #val == 0 and not next(val) then return true end
-            if val["All"] or table.find(val, "All") then return true end
+    local allowAllMutations = (not rawMutation) or (rawMutation == "All")
+    local mutationSet = {}
+    if not allowAllMutations then
+        if typeof(rawMutation) == "string" then
+            if rawMutation == "All" then
+                allowAllMutations = true
+            else
+                local mLower = string.lower(rawMutation)
+                mutationSet[mLower] = true
+                if mLower == "gold" or mLower == "golden" then
+                    mutationSet["gold"] = true
+                    mutationSet["golden"] = true
+                end
+            end
+        elseif typeof(rawMutation) == "table" then
+            for k, v in pairs(rawMutation) do
+                local name = typeof(k) == "number" and tostring(v) or tostring(k)
+                local nameLower = string.lower(name)
+                if nameLower == "all" then
+                    allowAllMutations = true
+                    break
+                end
+                mutationSet[nameLower] = true
+                if nameLower == "gold" or nameLower == "golden" then
+                    mutationSet["gold"] = true
+                    mutationSet["golden"] = true
+                end
+            end
         end
-        return false
     end
 
     local function matchesFilter(block)
-        local blockRarity = Features.ResolveBlockRarity(block)
-        local blockRarityLower = string.lower(blockRarity)
-        local blockMutation = Features.ResolveMutation(block)
-        local blockMutationLower = string.lower(blockMutation)
-
         -- Check Rarity
-        local rarityMatch = false
-        if isRarityAll(selectedRarity) then
-            rarityMatch = true
-        elseif typeof(selectedRarity) == "string" then
-            if selectedRarity == "Soccer God" or selectedRarity == "Slime God" then
-                rarityMatch = (blockRarityLower == "soccer god" or blockRarityLower == "slime god")
-            else
-                rarityMatch = (string.lower(selectedRarity) == blockRarityLower)
-            end
-        elseif typeof(selectedRarity) == "table" then
-            for _, r in ipairs(selectedRarity) do
-                local rLower = string.lower(tostring(r))
-                if (rLower == "soccer god" or rLower == "slime god") and (blockRarityLower == "soccer god" or blockRarityLower == "slime god") then
-                    rarityMatch = true
-                    break
-                elseif rLower == blockRarityLower then
-                    rarityMatch = true
-                    break
-                end
-            end
-            if not rarityMatch then
-                for k, v in pairs(selectedRarity) do
-                    if v == true then
-                        local kLower = string.lower(tostring(k))
-                        if (kLower == "soccer god" or kLower == "slime god") and (blockRarityLower == "soccer god" or blockRarityLower == "slime god") then
-                            rarityMatch = true
-                            break
-                        elseif kLower == blockRarityLower then
-                            rarityMatch = true
-                            break
-                        end
-                    end
-                end
+        if not allowAllRarities then
+            local blockRarity = Features.ResolveBlockRarity(block)
+            local rLower = string.lower(blockRarity)
+            if not raritySet[rLower] then
+                return false
             end
         end
 
         -- Check Mutation
-        local mutationMatch = false
-        if isMutationAll(selectedMutation) then
-            mutationMatch = true
-        elseif typeof(selectedMutation) == "string" then
-            local selMutLower = string.lower(selectedMutation)
-            if selMutLower == "gold" or selMutLower == "golden" then
-                mutationMatch = (blockMutationLower == "gold" or blockMutationLower == "golden")
-            else
-                mutationMatch = (selMutLower == blockMutationLower)
+        if not allowAllMutations then
+            local blockMutation = Features.ResolveMutation(block)
+            local mLower = string.lower(blockMutation)
+            if not mutationSet[mLower] then
+                return false
             end
-        elseif typeof(selectedMutation) == "table" then
-            for _, m in ipairs(selectedMutation) do
-                local mLower = string.lower(tostring(m))
-                if (mLower == "gold" or mLower == "golden") and (blockMutationLower == "gold" or blockMutationLower == "golden") then
-                    mutationMatch = true
-                    break
-                elseif mLower == blockMutationLower then
-                    mutationMatch = true
-                    break
-                end
-            end
-            if not mutationMatch then
-                for k, v in pairs(selectedMutation) do
-                    if v == true then
-                        local kLower = string.lower(tostring(k))
-                        if (kLower == "gold" or kLower == "golden") and (blockMutationLower == "gold" or blockMutationLower == "golden") then
-                            mutationMatch = true
-                            break
-                        elseif kLower == blockMutationLower then
-                            mutationMatch = true
-                            break
+        end
+
+        return true
+    end
+
+    local candidates = {}
+    local candidatePrompts = {}
+
+    local function inspectContainer(folder)
+        if not folder then return end
+        local children = folder:GetChildren()
+        for i = 1, #children do
+            local block = children[i]
+            if block:IsA("Model") and matchesFilter(block) then
+                local prompt = block:FindFirstChildWhichIsA("ProximityPrompt", true)
+                if prompt and (prompt.Name == "StealPrompt" or prompt.ActionText:lower():find("collect") or prompt.ActionText:lower():find("steal")) then
+                    if not candidatePrompts[prompt] then
+                        candidatePrompts[prompt] = true
+                        local part = prompt.Parent:IsA("BasePart") and prompt.Parent or block.PrimaryPart or block:FindFirstChild("RootPart")
+                        if part then
+                            table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
                         end
                     end
                 end
             end
         end
-
-        return rarityMatch and mutationMatch
     end
 
-    local candidateList = {}
-    local function checkContainer(container)
-        if not container then return end
-        for _, block in ipairs(container:GetChildren()) do
-            if block:IsA("Model") and matchesFilter(block) then
-                local prompt = block:FindFirstChildWhichIsA("ProximityPrompt", true)
-                if prompt and (prompt.Name == "StealPrompt" or prompt.ActionText:lower():find("collect")) then
-                    local part = prompt.Parent:IsA("BasePart") and prompt.Parent or block.PrimaryPart or block:FindFirstChild("RootPart")
-                    if part and not table.find(candidateList, prompt) then
-                        table.insert(candidateList, prompt)
-                        table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
-                    end
-                end
-            end
-        end
-    end
-
-    checkContainer(Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("Slimes"))
-    checkContainer(Workspace:FindFirstChild("Slimes"))
-
-    -- Also search workspace if filters are broad or no candidates found yet
-    if #candidates == 0 or (isRarityAll(selectedRarity) and isMutationAll(selectedMutation)) then
-        for _, prompt in ipairs(Workspace:GetDescendants()) do
-            if prompt:IsA("ProximityPrompt") and (prompt.Name == "StealPrompt" or prompt.ActionText:lower():find("collect")) then
-                local model = prompt:FindFirstAncestorOfClass("Model")
-                if (not model or matchesFilter(model)) and not table.find(candidateList, prompt) then
-                    local part = prompt.Parent:IsA("BasePart") and prompt.Parent or (model and model.PrimaryPart)
-                    if part then
-                        table.insert(candidateList, prompt)
-                        table.insert(candidates, { prompt = prompt, part = part, distance = (root.Position - part.Position).Magnitude })
-                    end
-                end
-            end
-        end
-    end
+    -- Strictly scan designated lucky block containers (Zero-lag)
+    inspectContainer(Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("Slimes"))
+    inspectContainer(Workspace:FindFirstChild("Slimes"))
+    inspectContainer(Workspace:FindFirstChild("Live") and Workspace.Live:FindFirstChild("LuckyBlocks"))
+    inspectContainer(Workspace:FindFirstChild("LuckyBlocks"))
 
     if #candidates == 0 then return end
 
@@ -669,16 +683,76 @@ function Features.UpgradeSoccerPlayersStep()
 end
 
 -- ------------------------------------------------------------------------------
--- Feature 6: Auto Buy Speed Upgrade
+-- Feature 6: Auto Buy Jump Upgrade (Selected Buy: 1, 5, or 10 Instant)
 -- ------------------------------------------------------------------------------
-function Features.BuySpeedUpgradeStep()
-    for tier = 1, 10 do
-        BuySpeedRemote:FireServer(tier)
+function Features.BuyJumpUpgradeStep()
+    local amtStr = tostring(Features.State.JumpBuyAmount or "10")
+    if amtStr:find("10") or amtStr == "10" or amtStr:lower():find("instant") then
+        for tier = 1, 10 do
+            pcall(function() BuySpeedRemote:FireServer(tier) end)
+        end
+        pcall(function() BuySpeedRemote:FireServer(10) end)
+    elseif amtStr == "5" or amtStr:find("5") then
+        for tier = 1, 5 do
+            pcall(function() BuySpeedRemote:FireServer(tier) end)
+        end
+        pcall(function() BuySpeedRemote:FireServer(5) end)
+    else
+        pcall(function() BuySpeedRemote:FireServer(1) end)
     end
+end
+Features.BuySpeedUpgradeStep = Features.BuyJumpUpgradeStep -- Backwards compatibility
+
+-- ------------------------------------------------------------------------------
+-- Feature 7: Auto Penalty Kick (Minigame Automation)
+-- ------------------------------------------------------------------------------
+local penaltyInProgress = false
+function Features.PenaltyKickStep()
+    if penaltyInProgress then return end
+    if not PenaltyMinigameAction and not PenaltyMinigameState then return end
+
+    penaltyInProgress = true
+    task.spawn(function()
+        pcall(function()
+            if PenaltyMinigameAction and PenaltyMinigameAction:IsA("RemoteFunction") then
+                -- Safely fire common minigame kick actions
+                pcall(function() PenaltyMinigameAction:InvokeServer("Start") end)
+                pcall(function() PenaltyMinigameAction:InvokeServer("Play") end)
+                pcall(function() PenaltyMinigameAction:InvokeServer("Join") end)
+                pcall(function() PenaltyMinigameAction:InvokeServer("Shoot", 100, Vector3.new(0, 5, -20)) end)
+                pcall(function() PenaltyMinigameAction:InvokeServer("Kick", 100) end)
+                pcall(function() PenaltyMinigameAction:InvokeServer("Score") end)
+                pcall(function() PenaltyMinigameAction:InvokeServer("Claim") end)
+                pcall(function() PenaltyMinigameAction:InvokeServer(1) end)
+                pcall(function() PenaltyMinigameAction:InvokeServer(true) end)
+            end
+
+            -- Also trigger any penalty minigame proximity prompts or pads if present in workspace
+            local myPlot = Features.GetMyPlot()
+            local searchFolders = {
+                Workspace:FindFirstChild("Penalty"),
+                Workspace:FindFirstChild("PenaltyMinigame"),
+                Workspace:FindFirstChild("Minigames"),
+                Workspace:FindFirstChild("Goals"),
+                myPlot and myPlot:FindFirstChild("Penalty")
+            }
+            for _, folder in ipairs(searchFolders) do
+                if folder then
+                    for _, d in ipairs(folder:GetDescendants()) do
+                        if d:IsA("ProximityPrompt") and fireproximityprompt then
+                            fireproximityprompt(d, 0)
+                        end
+                    end
+                end
+            end
+        end)
+        task.wait(0.5)
+        penaltyInProgress = false
+    end)
 end
 
 -- ------------------------------------------------------------------------------
--- Feature 7: Auto Rebirth
+-- Feature 8: Auto Rebirth
 -- ------------------------------------------------------------------------------
 function Features.AutoRebirthStep()
     local data = Features.GetPlayerData()
@@ -694,14 +768,14 @@ function Features.AutoRebirthStep()
 end
 
 -- ------------------------------------------------------------------------------
--- Feature 8: Auto Sell From Backpack
+-- Feature 9: Auto Sell From Backpack
 -- ------------------------------------------------------------------------------
 function Features.SellFromBackpackStep()
     SellAllRemote:FireServer()
 end
 
 -- ------------------------------------------------------------------------------
--- Feature 9: Move Speed Multiplier (1-10 input, auto-capped at 3x for safety)
+-- Feature 10: Move Speed Multiplier (1-10 input, auto-capped at 3x for safety)
 -- ------------------------------------------------------------------------------
 function Features.ApplyMoveSpeed()
     local char = LocalPlayer.Character
@@ -714,7 +788,7 @@ function Features.ApplyMoveSpeed()
 end
 
 -- ------------------------------------------------------------------------------
--- Feature 10: Mutation display on Egg / Lucky Block ESP (Gold / Rainbow / None)
+-- Feature 11: Mutation display on Egg / Lucky Block ESP (Gold / Rainbow / None)
 -- ------------------------------------------------------------------------------
 local ESPFolder = Instance.new("Folder")
 ESPFolder.Name = "HipHub_ESP_Cache"
@@ -731,6 +805,7 @@ local MUTATION_COLORS = {
     ["Volcanic"] = Color3.fromRGB(255, 69, 0),
     ["Cursed"] = Color3.fromRGB(179, 0, 250),
     ["Neon"] = Color3.fromRGB(4, 250, 0),
+    ["Ghost"] = Color3.fromRGB(180, 220, 255),
     ["None"] = Color3.fromRGB(0, 200, 255)
 }
 
@@ -832,14 +907,15 @@ function Features.UpdateESP()
 end
 
 -- ------------------------------------------------------------------------------
--- Main Automation Loop
+-- Main Automation Loop & Event Hooks
 -- ------------------------------------------------------------------------------
 local lastCollectLB = 0
 local lastCollectEarn = 0
 local lastPlaceOpen = 0
 local lastPickup = 0
 local lastUpgrade = 0
-local lastBuySpeed = 0
+local lastBuyJump = 0
+local lastPenalty = 0
 local lastRebirth = 0
 local lastSell = 0
 local lastESP = 0
@@ -861,11 +937,28 @@ function Features.Init()
         end
     end)
 
+    -- Real-time Minigame State Hook
+    if PenaltyMinigameState and PenaltyMinigameState:IsA("RemoteEvent") and not _G.HipHubPenaltyHooked then
+        _G.HipHubPenaltyHooked = true
+        PenaltyMinigameState.OnClientEvent:Connect(function(...)
+            if Features.State.AutoPenaltyKick and PenaltyMinigameAction then
+                task.spawn(function()
+                    pcall(function()
+                        PenaltyMinigameAction:InvokeServer("Shoot", 100, Vector3.new(0, 5, -20))
+                        PenaltyMinigameAction:InvokeServer("Kick", 100)
+                        PenaltyMinigameAction:InvokeServer("Score")
+                        PenaltyMinigameAction:InvokeServer("Claim")
+                    end)
+                end)
+            end
+        end)
+    end
+
     -- Heartbeat automation loop
     _G.HipHubHeartbeatConn = RunService.Heartbeat:Connect(function()
         local now = os.clock()
 
-        -- Auto Collect Lucky Block
+        -- Auto Collect Lucky Block (Optimized)
         if Features.State.AutoCollectLuckyBlock and (now - lastCollectLB >= 0.8) then
             lastCollectLB = now
             Features.CollectLuckyBlocksStep()
@@ -895,10 +988,16 @@ function Features.Init()
             Features.UpgradeSoccerPlayersStep()
         end
 
-        -- Auto Buy Speed Upgrade
-        if Features.State.AutoBuySpeedUpgrade and (now - lastBuySpeed >= 1.2) then
-            lastBuySpeed = now
-            Features.BuySpeedUpgradeStep()
+        -- Auto Buy Jump Upgrade (1, 5, or 10 Instant)
+        if (Features.State.AutoBuyJumpUpgrade or Features.State.AutoBuySpeedUpgrade) and (now - lastBuyJump >= 1.2) then
+            lastBuyJump = now
+            Features.BuyJumpUpgradeStep()
+        end
+
+        -- Auto Penalty Kick Minigame
+        if Features.State.AutoPenaltyKick and (now - lastPenalty >= 1.0) then
+            lastPenalty = now
+            Features.PenaltyKickStep()
         end
 
         -- Auto Rebirth

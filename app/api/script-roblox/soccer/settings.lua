@@ -31,7 +31,10 @@ local success, err = pcall(function()
 			AutoPlaceOpenLuckyBlock = false,
 			AutoPickupAllPlayers = false,
 			AutoUpgradePlayers = false,
+			AutoBuyJumpUpgrade = false,
 			AutoBuySpeedUpgrade = false,
+			JumpBuyAmount = "10 (Instant)",
+			AutoPenaltyKick = false,
 			AutoRebirth = false,
 			AutoSellBackpack = false
 		},
