@@ -55,6 +55,10 @@ local SharedModules = ReplicatedStorage:WaitForChild("SharedModules")
 local Database = require(SharedModules:WaitForChild("Database"))
 local SharedVariables = require(SharedModules:WaitForChild("Shared"):WaitForChild("SharedVariables"))
 local SoccerGameCatalog = require(SharedModules:WaitForChild("SoccerGameCatalog"))
+local SoccerPlayerRegistry
+pcall(function()
+    SoccerPlayerRegistry = require(SharedModules:FindFirstChild("SoccerPlayerRegistry"))
+end)
 
 -- ------------------------------------------------------------------------------
 -- Helper: Get Local Player's Plot
@@ -161,10 +165,153 @@ function Features.GetMaxCarryLimit()
 end
 
 -- ------------------------------------------------------------------------------
+-- Zone & Map Teleports (All Map Tiers & New Alternative Zone)
+-- ------------------------------------------------------------------------------
+Features.ZONES = {
+    { name = "Alternative", displayName = "Alternative (New Zone - Y: 5627)", defaultPos = Vector3.new(198, 5630, -1790) },
+    { name = "Japan", displayName = "Japan (Y: 4071)", defaultPos = Vector3.new(198, 4075, -1600) },
+    { name = "Icons", displayName = "Icons (Y: 2921)", defaultPos = Vector3.new(198, 2925, -1411) },
+    { name = "Spain", displayName = "Spain (Y: 1961)", defaultPos = Vector3.new(198, 1965, -1219) },
+    { name = "Champions", displayName = "Champions (Y: 1305)", defaultPos = Vector3.new(198, 1310, -1035) },
+    { name = "OG", displayName = "OG (Y: 887)", defaultPos = Vector3.new(198, 892, -855) },
+    { name = "Soccer God", displayName = "Soccer God (Y: 597)", defaultPos = Vector3.new(198, 602, -704) },
+    { name = "Secret", displayName = "Secret (Y: 395)", defaultPos = Vector3.new(198, 400, -552) },
+    { name = "Mexico", displayName = "Mexico (Y: 239)", defaultPos = Vector3.new(198, 244, -400) },
+    { name = "Legendary", displayName = "Legendary (Y: 122)", defaultPos = Vector3.new(198, 127, -247) },
+    { name = "Epic", displayName = "Epic (Y: 50)", defaultPos = Vector3.new(198, 55, -95) },
+    { name = "Rare", displayName = "Rare / Cabo Verde (Y: 18)", defaultPos = Vector3.new(198, 23, 57) },
+    { name = "Common", displayName = "Common / Spawn (Y: 0)", defaultPos = Vector3.new(198, 5, 209) },
+    { name = "Ending", displayName = "🏆 Ending / Winner Trophy (Y: 6597)", defaultPos = Vector3.new(198, 6602, -1933) },
+    { name = "Penalty Arena", displayName = "⚽ Penalty Minigame Arena", defaultPos = Vector3.new(198, 5, -200) },
+    { name = "Trading Plaza", displayName = "🏬 Trading Plaza Portal", defaultPos = Vector3.new(198, 5, 350) },
+    { name = "My Plot", displayName = "🏠 My Base Plot", defaultPos = nil }
+}
+
+function Features.GetZonePosition(zoneName)
+    if not zoneName then return nil end
+    local clean = string.lower(zoneName)
+
+    if clean == "my plot" or clean:find("my plot") or clean:find("my base") then
+        local myPlot = Features.GetMyPlot()
+        local pos = Features.GetPlotPosition(myPlot)
+        if pos then return pos + Vector3.new(0, 3.5, 0) end
+        return nil
+    end
+
+    local map = Workspace:FindFirstChild("Map")
+    if map then
+        -- 1. Try GuardianSpawns
+        local spawns = map:FindFirstChild("GuardianSpawns")
+        if spawns then
+            for _, s in ipairs(spawns:GetChildren()) do
+                if string.lower(s.Name):find(clean, 1, true) or clean:find(string.lower(s.Name), 1, true) then
+                    local p = s:IsA("BasePart") and s.Position or (s:IsA("Model") and s:GetPivot().Position or nil)
+                    if p then return p + Vector3.new(0, 3.5, 0) end
+                end
+            end
+        end
+
+        -- 2. Try RarityTexts
+        local rarityTexts = map:FindFirstChild("RarityTexts")
+        if rarityTexts then
+            for _, r in ipairs(rarityTexts:GetChildren()) do
+                if string.lower(r.Name):find(clean, 1, true) or clean:find(string.lower(r.Name), 1, true) then
+                    local p = r:IsA("BasePart") and r.Position or (r:IsA("Model") and r:GetPivot().Position or nil)
+                    if p then return p + Vector3.new(0, 3.5, 0) end
+                end
+            end
+        end
+
+        -- 3. Try JumpRequirements
+        local reqs = map:FindFirstChild("JumpRequirements")
+        if reqs then
+            for _, r in ipairs(reqs:GetChildren()) do
+                if string.lower(r.Name):find(clean, 1, true) or clean:find(string.lower(r.Name), 1, true) then
+                    local p = r:IsA("BasePart") and r.Position or (r:IsA("Model") and r:GetPivot().Position or nil)
+                    if p then return p + Vector3.new(0, 3.5, 0) end
+                end
+            end
+        end
+
+        -- 4. Try Ending
+        if clean:find("ending") or clean:find("trophy") then
+            local ending = map:FindFirstChild("Ending")
+            if ending then
+                local p = ending:IsA("BasePart") and ending.Position or (ending:IsA("Model") and ending:GetPivot().Position or nil)
+                if p then return p + Vector3.new(0, 3.5, 0) end
+            end
+        end
+    end
+
+    -- 5. Try Special Workspace objects
+    if clean:find("penalty") then
+        local arena = Workspace:FindFirstChild("PenaltyMinigameArena")
+        if arena then
+            local p = arena:IsA("BasePart") and arena.Position or (arena:IsA("Model") and arena:GetPivot().Position or nil)
+            if p then return p + Vector3.new(0, 3.5, 0) end
+        end
+    end
+
+    if clean:find("trading") then
+        local portal = Workspace:FindFirstChild("TradingPlazaPortal")
+        if portal then
+            local p = portal:IsA("BasePart") and portal.Position or (portal:IsA("Model") and portal:GetPivot().Position or nil)
+            if p then return p + Vector3.new(0, 3.5, 0) end
+        end
+    end
+
+    -- Fallback from static dictionary
+    for _, z in ipairs(Features.ZONES) do
+        if string.lower(z.name) == clean or clean:find(string.lower(z.name), 1, true) or string.lower(z.name):find(clean, 1, true) then
+            if z.defaultPos then return z.defaultPos end
+        end
+    end
+
+    return nil
+end
+
+function Features.TeleportToZone(zoneName)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return false, "Character not found" end
+
+    local targetPos = Features.GetZonePosition(zoneName)
+    if not targetPos then return false, "Zone position not found" end
+
+    pcall(function()
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+    root.CFrame = CFrame.new(targetPos)
+    pcall(function()
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+    return true
+end
+
+-- ------------------------------------------------------------------------------
 -- Helper: High-Performance Caching for Block Rarity & Mutation Resolution
 -- ------------------------------------------------------------------------------
 local rarityCache = setmetatable({}, { __mode = "k" })
 local mutationCache = setmetatable({}, { __mode = "k" })
+
+local RARITY_NAME_ALIASES = {
+    ["alternate"] = "Alternative",
+    ["alternative"] = "Alternative",
+    ["cosmic"] = "Secret",
+    ["planet"] = "Secret",
+    ["poison"] = "Mythic",
+    ["67"] = "Legendary",
+    ["sixseven"] = "Legendary",
+    ["volcanic"] = "Rare",
+    ["water"] = "Common",
+    ["waves"] = "Common",
+    ["rainbow"] = "Soccer God",
+    ["slime god"] = "Soccer God",
+    ["soccer god"] = "Soccer God",
+    ["ghost"] = "Epic"
+}
 
 function Features.ResolveBlockRarity(block)
     if not block then return "Common" end
@@ -172,26 +319,49 @@ function Features.ResolveBlockRarity(block)
     if cached then return cached end
 
     local sId = block:GetAttribute("SlimeId") or block:GetAttribute("slimeID") or block:GetAttribute("slimeId")
-    if sId and Database and Database.Slimes and Database.Slimes[tostring(sId)] then
-        local r = Database.Slimes[tostring(sId)].Rarity
-        if r then
-            local res = (r == "Slime God") and "Soccer God" or r
-            rarityCache[block] = res
-            return res
+    if sId then
+        local sIdStr = tostring(sId)
+        if SoccerPlayerRegistry and SoccerPlayerRegistry.LUCKY_BLOCKS and SoccerPlayerRegistry.LUCKY_BLOCKS[sIdStr] then
+            local r = SoccerPlayerRegistry.LUCKY_BLOCKS[sIdStr].rarity
+            if r then
+                local res = (r == "Slime God") and "Soccer God" or r
+                rarityCache[block] = res
+                return res
+            end
+        end
+
+        if Database and Database.Slimes and Database.Slimes[sIdStr] then
+            local r = Database.Slimes[sIdStr].Rarity
+            if r then
+                local res = (r == "Slime God") and "Soccer God" or r
+                rarityCache[block] = res
+                return res
+            end
         end
     end
 
     local cleanName = block.Name:gsub(" Lucky Block", ""):gsub("Lucky Block", ""):gsub("^%s*(.-)%s*$", "%1")
-    if cleanName == "Slime God" or cleanName == "Soccer God" then
-        rarityCache[block] = "Soccer God"
-        return "Soccer God"
+    local cleanLower = string.lower(cleanName)
+
+    if RARITY_NAME_ALIASES[cleanLower] then
+        local res = RARITY_NAME_ALIASES[cleanLower]
+        rarityCache[block] = res
+        return res
     end
 
-    local knownRarities = { "LIMITED", "Japan", "Icons", "Spain", "Champions", "OG", "Exclusive", "Divine", "Soccer God", "Secret", "Mythic", "Legendary", "Epic", "Rare", "Common" }
+    local knownRarities = { "Alternative", "LIMITED", "Japan", "Icons", "Spain", "Champions", "OG", "Exclusive", "Divine", "Soccer God", "Secret", "Mythic", "Legendary", "Epic", "Rare", "Common" }
     for _, r in ipairs(knownRarities) do
-        if cleanName:lower() == r:lower() or block.Name:lower():find(r:lower(), 1, true) then
+        if cleanLower == string.lower(r) or block.Name:lower():find(string.lower(r), 1, true) then
             rarityCache[block] = r
             return r
+        end
+    end
+
+    -- Check partial aliases in block name
+    for aliasKey, resolvedRarity in pairs(RARITY_NAME_ALIASES) do
+        if block.Name:lower():find(aliasKey, 1, true) then
+            rarityCache[block] = resolvedRarity
+            return resolvedRarity
         end
     end
 
@@ -797,6 +967,8 @@ ESPFolder.Parent = Workspace
 local ActiveESP = {}
 
 local MUTATION_COLORS = {
+    ["Alternative"] = Color3.fromRGB(0, 255, 213),
+    ["Alternate"] = Color3.fromRGB(0, 255, 213),
     ["Gold"] = Color3.fromRGB(250, 176, 38),
     ["Golden"] = Color3.fromRGB(250, 176, 38),
     ["Rainbow"] = Color3.fromRGB(255, 105, 180),
@@ -806,6 +978,8 @@ local MUTATION_COLORS = {
     ["Cursed"] = Color3.fromRGB(179, 0, 250),
     ["Neon"] = Color3.fromRGB(4, 250, 0),
     ["Ghost"] = Color3.fromRGB(180, 220, 255),
+    ["Poison"] = Color3.fromRGB(195, 255, 0),
+    ["Cosmic"] = Color3.fromRGB(180, 80, 255),
     ["None"] = Color3.fromRGB(0, 200, 255)
 }
 

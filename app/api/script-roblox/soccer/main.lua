@@ -146,6 +146,7 @@ local success, err = pcall(function()
 
 		local rarityOptions = {
 			"All",
+			"Alternative",
 			"LIMITED",
 			"Japan",
 			"Icons",
@@ -308,6 +309,60 @@ local success, err = pcall(function()
 		end, 1)
 
 		UI.AddLabel(espSec, "🏷️ Mutation Colors: Gold (#FAB026) | Rainbow | Cyan", 2)
+
+		-- Section 3: Zone & Map Teleports (All Heights & New Alternative Zone)
+		local tpSec = UI.AddSection(moveTabFrame, "🚀 Zone & Map Teleports", 3)
+
+		local zoneNames = {
+			"Alternative (New Zone - Y: 5627)",
+			"Japan (Y: 4071)",
+			"Icons (Y: 2921)",
+			"Spain (Y: 1961)",
+			"Champions (Y: 1305)",
+			"OG (Y: 887)",
+			"Soccer God (Y: 597)",
+			"Secret (Y: 395)",
+			"Mexico (Y: 239)",
+			"Legendary (Y: 122)",
+			"Epic (Y: 50)",
+			"Rare / Cabo Verde (Y: 18)",
+			"Common / Spawn (Y: 0)",
+			"🏆 Ending / Winner Trophy (Y: 6597)",
+			"⚽ Penalty Minigame Arena",
+			"🏬 Trading Plaza Portal",
+			"🏠 My Base Plot"
+		}
+		local selectedZone = "Alternative (New Zone - Y: 5627)"
+
+		UI.AddDropdown(tpSec, "Select Target Zone", zoneNames, selectedZone, function(selected)
+			selectedZone = selected
+		end, 1)
+
+		UI.AddButton(tpSec, "⚡ Teleport to Selected Zone", function()
+			local rawName = selectedZone:match("^(.-)%s*%(") or selectedZone
+			rawName = rawName:gsub("🏆%s*", ""):gsub("⚽%s*", ""):gsub("🏬%s*", ""):gsub("🏠%s*", ""):gsub("^%s*(.-)%s*$", "%1")
+			local ok, err = Features.TeleportToZone(rawName)
+			if ok then
+				UI.Notify("Teleported", "Teleported to " .. rawName, 2, "success")
+			else
+				UI.Notify("Teleport Error", tostring(err or "Failed to teleport"), 2, "warning")
+			end
+		end, 2)
+
+		UI.AddButton(tpSec, "🌟 Quick Teleport: Alternative Zone (New)", function()
+			Features.TeleportToZone("Alternative")
+			UI.Notify("Teleported", "Teleported to Alternative Zone!", 2, "success")
+		end, 3)
+
+		UI.AddButton(tpSec, "🏆 Quick Teleport: Ending / Winner Trophy", function()
+			Features.TeleportToZone("Ending")
+			UI.Notify("Teleported", "Teleported to Ending Trophy!", 2, "success")
+		end, 4)
+
+		UI.AddButton(tpSec, "🏠 Quick Teleport: My Plot Base", function()
+			Features.TeleportToZone("My Plot")
+			UI.Notify("Teleported", "Teleported to your plot!", 2, "success")
+		end, 5)
 	end
 
 	------------------------------------------------
