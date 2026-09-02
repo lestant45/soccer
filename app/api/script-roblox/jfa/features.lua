@@ -178,11 +178,12 @@ end
 function Features.InteractPrompt(prompt)
 	if not prompt or not prompt:IsA("ProximityPrompt") then return false end
 	pcall(function()
+		prompt.HoldDuration = 0
 		if fireproximityprompt then
+			fireproximityprompt(prompt, 0)
 			fireproximityprompt(prompt)
 		else
 			prompt:InputHoldBegin()
-			task.wait(prompt.HoldDuration + 0.05)
 			prompt:InputHoldEnd()
 		end
 	end)
@@ -323,7 +324,7 @@ function Features.GetAllSpawnedEggs()
 	return eggs
 end
 
--- Auto Steal Eggs Loop
+-- Auto Steal Eggs Loop (Ultra-Fast Optimized)
 local isStealLoopRunning = false
 function Features.StartStealLoop()
 	if isStealLoopRunning then return end
@@ -338,37 +339,43 @@ function Features.StartStealLoop()
 					local root = Features.GetRootPart()
 
 					if carried >= capacity then
-						-- Full backpack -> Teleport back to Plot to place eggs
+						-- Full backpack -> Teleport directly to Plot Detector
 						local myPlot = Features.GetMyPlot()
-						if myPlot then
+						if myPlot and root then
 							local base = myPlot:FindFirstChild("Detector") or myPlot:FindFirstChild("DefaultSize") or myPlot:FindFirstChildWhichIsA("BasePart")
-							if base and root then
+							if base then
+								root.AssemblyLinearVelocity = Vector3.zero
 								root.CFrame = base.CFrame + Vector3.new(0, 3, 0)
-								task.wait(0.5)
+								task.wait(0.2)
 							end
 						end
 					else
 						-- Search for target eggs
 						local eggs = Features.GetAllSpawnedEggs()
 						if #eggs > 0 and root then
-							-- Sort nearest egg
+							-- Sort nearest egg to minimize travel
 							table.sort(eggs, function(a, b)
 								return (root.Position - a.Position).Magnitude < (root.Position - b.Position).Magnitude
 							end)
 
 							local targetEgg = eggs[1]
-							if targetEgg and targetEgg.Part and targetEgg.Prompt then
-								-- Teleport to egg
-								root.CFrame = targetEgg.Part.CFrame + Vector3.new(0, 2, 0)
-								task.wait(0.15)
+							if targetEgg and targetEgg.Part and targetEgg.Prompt and targetEgg.Prompt.Enabled then
+								-- Instant Teleport & Zero Velocity
+								root.AssemblyLinearVelocity = Vector3.zero
+								root.AssemblyAngularVelocity = Vector3.zero
+								root.CFrame = targetEgg.Part.CFrame + Vector3.new(0, 1.5, 0)
+								task.wait(0.03)
+
+								-- Instant ProximityPrompt trigger
+								targetEgg.Prompt.HoldDuration = 0
 								Features.InteractPrompt(targetEgg.Prompt)
-								task.wait(0.25)
+								task.wait(Features.State.StealDelay or 0.05)
 							end
 						end
 					end
 				end)
 			end
-			task.wait(0.3)
+			task.wait(Features.State.StealDelay or 0.05)
 		end
 	end)
 end

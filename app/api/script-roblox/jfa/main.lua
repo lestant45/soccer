@@ -209,6 +209,12 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 3)
 
+	UI.AddSlider(stealSec, "Steal Delay (Speed)", 2, 50, math.floor((Features.State.StealDelay or 0.05) * 100), function(val)
+		Features.State.StealDelay = val / 100
+		if Config.Farming then Config.Farming.StealDelay = val / 100 end
+		saveConfig()
+	end, 4, "cs")
+
 	local plotSec = UI.AddSection(farmFrame, "Plot & Pet Management", 2)
 
 	UI.AddMultiDropdown(plotSec, "Target Eggs to Auto-Place", eggList, Features.State.SelectedPlaceEggs or { ["All"] = true }, function(map)
