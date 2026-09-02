@@ -205,20 +205,11 @@ local success, err = pcall(function()
 	topBarBottomBorder.BorderSizePixel = 0
 	topBarBottomBorder.Parent = topBar
 
-	-- Title & Brand Icon
-	local brandIcon = Instance.new("TextLabel")
-	brandIcon.Name = "BrandIcon"
-	brandIcon.Size = UDim2.new(0, 32, 0, 32)
-	brandIcon.Position = UDim2.new(0, 12, 0.5, -16)
-	brandIcon.BackgroundTransparency = 1
-	brandIcon.Text = "🐾"
-	brandIcon.TextSize = 22
-	brandIcon.Parent = topBar
-
+	-- Title & Brand Header
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Name = "TitleLabel"
 	titleLabel.Size = UDim2.new(0, 240, 0, 24)
-	titleLabel.Position = UDim2.new(0, 48, 0.5, -12)
+	titleLabel.Position = UDim2.new(0, 16, 0.5, -12)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.Text = "HIPHUB <font color='#00C8FF'><b>JUMP FOR ANIMALS</b></font>"
 	titleLabel.RichText = true
@@ -230,8 +221,8 @@ local success, err = pcall(function()
 
 	local versionTag = Instance.new("TextLabel")
 	versionTag.Name = "VersionTag"
-	versionTag.Size = UDim2.new(0, 60, 0, 18)
-	versionTag.Position = UDim2.new(0, 268, 0.5, -9)
+	versionTag.Size = UDim2.new(0, 56, 0, 18)
+	versionTag.Position = UDim2.new(0, 235, 0.5, -9)
 	versionTag.BackgroundColor3 = COLORS.glassCard
 	versionTag.BackgroundTransparency = 0.2
 	versionTag.Text = "v1.0.0"
@@ -302,7 +293,7 @@ local success, err = pcall(function()
 	addHoverAnimation(closeButton, COLORS.glassCard, Color3.fromRGB(60, 20, 25))
 
 	------------------------------------------------
-	-- 📑 SIDEBAR (NAVIGATION)
+	-- 📑 SIDEBAR (NAVIGATION & USER PROFILE)
 	------------------------------------------------
 	local sidebar = Instance.new("Frame")
 	sidebar.Name = "Sidebar"
@@ -324,7 +315,7 @@ local success, err = pcall(function()
 
 	local navList = Instance.new("ScrollingFrame")
 	navList.Name = "NavList"
-	navList.Size = UDim2.new(1, -12, 1, -16)
+	navList.Size = UDim2.new(1, -12, 1, -76)
 	navList.Position = UDim2.new(0, 6, 0, 8)
 	navList.BackgroundTransparency = 1
 	navList.BorderSizePixel = 0
@@ -338,6 +329,69 @@ local success, err = pcall(function()
 	navLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	navLayout.Padding = UDim.new(0, 5)
 	navLayout.Parent = navList
+
+	-- 👤 USER PROFILE CARD (PINNED AT BOTTOM LEFT)
+	local profileCard = Instance.new("Frame")
+	profileCard.Name = "UserProfile"
+	profileCard.Size = UDim2.new(1, -12, 0, 54)
+	profileCard.Position = UDim2.new(0, 6, 1, -60)
+	profileCard.BackgroundColor3 = COLORS.glassCard
+	profileCard.BackgroundTransparency = 0.35
+	profileCard.BorderSizePixel = 0
+	profileCard.Parent = sidebar
+	applyGlass(profileCard, { corner = CORNER.medium, stroke = true, strokeColor = COLORS.borderGlass, strokeTransparency = 0.7 })
+
+	local avatarFrame = Instance.new("Frame")
+	avatarFrame.Name = "AvatarFrame"
+	avatarFrame.Size = UDim2.new(0, 36, 0, 36)
+	avatarFrame.Position = UDim2.new(0, 8, 0.5, -18)
+	avatarFrame.BackgroundColor3 = COLORS.glassSurface
+	avatarFrame.BorderSizePixel = 0
+	avatarFrame.Parent = profileCard
+	applyGlass(avatarFrame, { corner = CORNER.pill, stroke = true, strokeColor = COLORS.accentCyan, strokeTransparency = 0.4 })
+
+	local avatarImg = Instance.new("ImageLabel")
+	avatarImg.Name = "AvatarImage"
+	avatarImg.Size = UDim2.new(1, 0, 1, 0)
+	avatarImg.BackgroundTransparency = 1
+	avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(player.UserId) .. "&w=150&h=150"
+	avatarImg.Parent = avatarFrame
+	applyGlass(avatarImg, { corner = CORNER.pill })
+
+	task.spawn(function()
+		pcall(function()
+			local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+			if isReady and content then
+				avatarImg.Image = content
+			end
+		end)
+	end)
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "DisplayName"
+	nameLabel.Size = UDim2.new(1, -54, 0, 16)
+	nameLabel.Position = UDim2.new(0, 48, 0, 10)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = player.DisplayName or player.Name
+	nameLabel.TextColor3 = COLORS.textPrimary
+	nameLabel.TextSize = 11
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLabel.Parent = profileCard
+
+	local userLabel = Instance.new("TextLabel")
+	userLabel.Name = "Username"
+	userLabel.Size = UDim2.new(1, -54, 0, 14)
+	userLabel.Position = UDim2.new(0, 48, 0, 26)
+	userLabel.BackgroundTransparency = 1
+	userLabel.Text = "@" .. player.Name
+	userLabel.TextColor3 = COLORS.accentCyan
+	userLabel.TextSize = 10
+	userLabel.Font = Enum.Font.GothamMedium
+	userLabel.TextXAlignment = Enum.TextXAlignment.Left
+	userLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	userLabel.Parent = profileCard
 
 	------------------------------------------------
 	-- 📦 CONTENT CONTAINER

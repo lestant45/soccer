@@ -133,15 +133,15 @@ local success, err = pcall(function()
 
 	-- Live Stats Section
 	local statsSec = UI.AddSection(trainFrame, "Live Jump & Player Stats", 1)
-	local jumpPowerCard = UI.AddStatCard(statsSec, "⚡ Jump Power", "0", 1)
-	local levelCard = UI.AddStatCard(statsSec, "🏆 Training Level", "1", 2)
-	local xpCard = UI.AddStatCard(statsSec, "✨ Training XP", "0 / 0", 3)
-	local cashCard = UI.AddStatCard(statsSec, "💰 Cash Balance", "$0", 4)
+	local jumpPowerCard = UI.AddStatCard(statsSec, "Jump Power", "0", 1)
+	local levelCard = UI.AddStatCard(statsSec, "Training Level", "1", 2)
+	local xpCard = UI.AddStatCard(statsSec, "Training XP", "0 / 0", 3)
+	local cashCard = UI.AddStatCard(statsSec, "Cash Balance", "$0", 4)
 
 	-- Auto Squat Section
 	local squatSec = UI.AddSection(trainFrame, "Squat Automation", 2)
 
-	UI.AddToggle(squatSec, "🏋️‍♂️ Auto Squat Training", Features.State.AutoSquat, function(v)
+	UI.AddToggle(squatSec, "Auto Squat Training", Features.State.AutoSquat, function(v)
 		Features.State.AutoSquat = v
 		if Config.Training then Config.Training.AutoSquat = v end
 		if v then
@@ -156,19 +156,19 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 1)
 
-	UI.AddToggle(squatSec, "🎁 Auto Claim Squat Bonus", Features.State.AutoSquatBonus, function(v)
+	UI.AddToggle(squatSec, "Auto Claim Squat Bonus", Features.State.AutoSquatBonus, function(v)
 		Features.State.AutoSquatBonus = v
 		if Config.Training then Config.Training.AutoSquatBonus = v end
 		saveConfig()
 	end, 2)
 
-	UI.AddToggle(squatSec, "🏋️ Auto Upgrade Squat Barbell", Features.State.AutoUpgradeBarbell, function(v)
+	UI.AddToggle(squatSec, "Auto Upgrade Squat Barbell", Features.State.AutoUpgradeBarbell, function(v)
 		Features.State.AutoUpgradeBarbell = v
 		if Config.Training then Config.Training.AutoUpgradeBarbell = v end
 		saveConfig()
 	end, 3)
 
-	UI.AddButton(squatSec, "🚀 Teleport to My Squat Zone", function()
+	UI.AddButton(squatSec, "Teleport to My Squat Zone", function()
 		local myPlot = Features.GetMyPlot()
 		local detector = myPlot and myPlot:FindFirstChild("SquatZone")
 		if detector then detector = detector:FindFirstChild("Floor") end
@@ -179,7 +179,7 @@ local success, err = pcall(function()
 	end, 4)
 
 	------------------------------------------------
-	-- 🥚 2. FARMING TAB
+	-- 2. FARMING TAB
 	------------------------------------------------
 	local farmFrame = UI.tabs["Farming"].Frame
 
@@ -203,7 +203,7 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 2)
 
-	UI.AddToggle(stealSec, "🥚 Auto Steal Eggs from Stages", Features.State.AutoStealEggs, function(v)
+	UI.AddToggle(stealSec, "Auto Steal Eggs from Stages", Features.State.AutoStealEggs, function(v)
 		Features.State.AutoStealEggs = v
 		if Config.Farming then Config.Farming.AutoStealEggs = v end
 		saveConfig()
@@ -223,25 +223,25 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 1)
 
-	UI.AddToggle(plotSec, "📥 Auto Place Carried Eggs on Plot", Features.State.AutoPlaceEggs, function(v)
+	UI.AddToggle(plotSec, "Auto Place Carried Eggs on Plot", Features.State.AutoPlaceEggs, function(v)
 		Features.State.AutoPlaceEggs = v
 		if Config.Farming then Config.Farming.AutoPlaceEggs = v end
 		saveConfig()
 	end, 2)
 
-	UI.AddToggle(plotSec, "🐣 Auto Hatch / Claim Ready Eggs", Features.State.AutoHatchEggs, function(v)
+	UI.AddToggle(plotSec, "Auto Hatch / Claim Ready Eggs", Features.State.AutoHatchEggs, function(v)
 		Features.State.AutoHatchEggs = v
 		if Config.Farming then Config.Farming.AutoHatchEggs = v end
 		saveConfig()
 	end, 3)
 
-	UI.AddToggle(plotSec, "⭐ Auto Equip Best Pets", Features.State.AutoEquipBest, function(v)
+	UI.AddToggle(plotSec, "Auto Equip Best Pets", Features.State.AutoEquipBest, function(v)
 		Features.State.AutoEquipBest = v
 		if Config.Farming then Config.Farming.AutoEquipBest = v end
 		saveConfig()
 	end, 4)
 
-	UI.AddToggle(plotSec, "🏡 Auto Upgrade Pen (Equip Slots)", Features.State.AutoUpgradePen, function(v)
+	UI.AddToggle(plotSec, "Auto Upgrade Pen (Equip Slots)", Features.State.AutoUpgradePen, function(v)
 		Features.State.AutoUpgradePen = v
 		if Config.Farming then Config.Farming.AutoUpgradePen = v end
 		saveConfig()
@@ -253,35 +253,35 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 6)
 
-	UI.AddToggle(plotSec, "💵 Auto Sell Animals", Features.State.AutoSellPets, function(v)
+	UI.AddToggle(plotSec, "Auto Sell Animals", Features.State.AutoSellPets, function(v)
 		Features.State.AutoSellPets = v
 		if Config.Farming then Config.Farming.AutoSellPets = v end
 		saveConfig()
 	end, 7)
 
-	UI.AddButton(plotSec, "🏠 Teleport to My Plot", function()
+	UI.AddButton(plotSec, "Teleport to My Plot", function()
 		local myPlot = Features.GetMyPlot()
 		if myPlot then Features.TeleportTo(myPlot) end
 	end, 8)
 
-	UI.AddButton(plotSec, "🏪 Teleport to Sell Zone", function()
+	UI.AddButton(plotSec, "Teleport to Sell Zone", function()
 		Features.TeleportTo(Features.POIPositions["Sell Zone"])
 	end, 9)
 
 	------------------------------------------------
-	-- 🛒 3. SHOPS & BOOSTS TAB
+	-- 3. SHOPS & BOOSTS TAB
 	------------------------------------------------
 	local shopsFrame = UI.tabs["Shops"].Frame
 
 	local upgradesSec = UI.AddSection(shopsFrame, "Upgrades & Multipliers", 1)
 
-	UI.AddToggle(upgradesSec, "✨ Auto Buy Trails (Jump Multipliers)", Features.State.AutoBuyTrails, function(v)
+	UI.AddToggle(upgradesSec, "Auto Buy Trails (Jump Multipliers)", Features.State.AutoBuyTrails, function(v)
 		Features.State.AutoBuyTrails = v
 		if Config.Shops then Config.Shops.AutoBuyTrails = v end
 		saveConfig()
 	end, 1)
 
-	UI.AddToggle(upgradesSec, "🏃 Auto Buy Speed Coils", Features.State.AutoBuyCoils, function(v)
+	UI.AddToggle(upgradesSec, "Auto Buy Speed Coils", Features.State.AutoBuyCoils, function(v)
 		Features.State.AutoBuyCoils = v
 		if Config.Shops then Config.Shops.AutoBuyCoils = v end
 		saveConfig()
@@ -289,65 +289,65 @@ local success, err = pcall(function()
 
 	local rewardsSec = UI.AddSection(shopsFrame, "Rewards & Golden Mutation", 2)
 
-	UI.AddToggle(rewardsSec, "🌟 Auto Gold Mutation Machine", Features.State.AutoGoldMutation, function(v)
+	UI.AddToggle(rewardsSec, "Auto Gold Mutation Machine", Features.State.AutoGoldMutation, function(v)
 		Features.State.AutoGoldMutation = v
 		if Config.Shops then Config.Shops.AutoGoldMutation = v end
 		saveConfig()
 	end, 1)
 
-	UI.AddToggle(rewardsSec, "🎁 Auto Claim Animal Index Rewards", Features.State.AutoClaimIndex, function(v)
+	UI.AddToggle(rewardsSec, "Auto Claim Animal Index Rewards", Features.State.AutoClaimIndex, function(v)
 		Features.State.AutoClaimIndex = v
 		if Config.Shops then Config.Shops.AutoClaimIndex = v end
 		saveConfig()
 	end, 2)
 
-	UI.AddToggle(rewardsSec, "⌛ Auto Claim Offline Rewards", Features.State.AutoClaimOffline, function(v)
+	UI.AddToggle(rewardsSec, "Auto Claim Offline Rewards", Features.State.AutoClaimOffline, function(v)
 		Features.State.AutoClaimOffline = v
 		if Config.Shops then Config.Shops.AutoClaimOffline = v end
 		saveConfig()
 	end, 3)
 
-	UI.AddToggle(rewardsSec, "👥 Auto Claim Group Rewards", Features.State.AutoClaimGroup, function(v)
+	UI.AddToggle(rewardsSec, "Auto Claim Group Rewards", Features.State.AutoClaimGroup, function(v)
 		Features.State.AutoClaimGroup = v
 		if Config.Shops then Config.Shops.AutoClaimGroup = v end
 		saveConfig()
 	end, 4)
 
-	UI.AddButton(rewardsSec, "🧬 Teleport to Mutation Machine", function()
+	UI.AddButton(rewardsSec, "Teleport to Mutation Machine", function()
 		Features.TeleportTo(Features.POIPositions["Mutation Machine"])
 	end, 5)
 
-	UI.AddButton(rewardsSec, "🎁 Teleport to Group Rewards", function()
+	UI.AddButton(rewardsSec, "Teleport to Group Rewards", function()
 		Features.TeleportTo(Features.POIPositions["Group Rewards"])
 	end, 6)
 
 	------------------------------------------------
-	-- 🛡️ 4. DEFENSE TAB
+	-- 4. DEFENSE TAB
 	------------------------------------------------
 	local defFrame = UI.tabs["Defense"].Frame
 
 	local guardSec = UI.AddSection(defFrame, "Guard & Penalty Defense", 1)
 
-	UI.AddToggle(guardSec, "🛡️ Disable Client Guard Aggro/Follow", Features.State.DisableGuards, function(v)
+	UI.AddToggle(guardSec, "Anti Guard", Features.State.DisableGuards, function(v)
 		Features.State.DisableGuards = v
 		if Config.Defense then Config.Defense.DisableGuards = v end
 		saveConfig()
 	end, 1)
 
-	UI.AddToggle(guardSec, "🔒 Anti Egg Drop (Stay in Hand)", Features.State.AntiEggDrop, function(v)
+	UI.AddToggle(guardSec, "Anti Egg Drop", Features.State.AntiEggDrop, function(v)
 		Features.State.AntiEggDrop = v
 		if Config.Defense then Config.Defense.AntiEggDrop = v end
 		saveConfig()
 	end, 2)
 
 	------------------------------------------------
-	-- ⚡ 5. MOVEMENT TAB
+	-- 5. MOVEMENT TAB
 	------------------------------------------------
 	local moveFrame = UI.tabs["Movement"].Frame
 
 	local speedSec = UI.AddSection(moveFrame, "Speed & Jump Modifications", 1)
 
-	UI.AddToggle(speedSec, "⚡ Enable Custom WalkSpeed", Features.State.SpeedEnabled, function(v)
+	UI.AddToggle(speedSec, "Enable Custom WalkSpeed", Features.State.SpeedEnabled, function(v)
 		Features.State.SpeedEnabled = v
 		if Config.Movement then Config.Movement.SpeedEnabled = v end
 		saveConfig()
@@ -359,9 +359,9 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 2)
 
-	UI.AddToggle(speedSec, "🚀 Enable Custom JumpPower", Features.State.JumpEnabled, function(v)
+	UI.AddToggle(speedSec, "Enable Custom JumpPower", Features.State.JumpEnabled, function(v)
 		Features.State.JumpEnabled = v
-		if Config.Movement then Config.Movement.JumpEnabled = v end
+		if Config.Movement then Config.Movement.JumpPower = v end
 		saveConfig()
 	end, 3)
 
@@ -371,7 +371,7 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 4)
 
-	UI.AddToggle(speedSec, "🌌 Infinite Jump", Features.State.InfiniteJump, function(v)
+	UI.AddToggle(speedSec, "Infinite Jump", Features.State.InfiniteJump, function(v)
 		Features.State.InfiniteJump = v
 		if Config.Movement then Config.Movement.InfiniteJump = v end
 		saveConfig()
@@ -379,7 +379,7 @@ local success, err = pcall(function()
 
 	local flightSec = UI.AddSection(moveFrame, "Flight & Noclip", 2)
 
-	UI.AddToggle(flightSec, "🦅 Fly Mode (WASD + Space/Shift)", Features.State.FlyEnabled, function(v)
+	UI.AddToggle(flightSec, "Fly Mode (WASD + Space/Shift)", Features.State.FlyEnabled, function(v)
 		Features.State.FlyEnabled = v
 		if Config.Movement then Config.Movement.FlyEnabled = v end
 		saveConfig()
@@ -391,7 +391,7 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 2)
 
-	UI.AddToggle(flightSec, "👻 Noclip (Pass Through Walls)", Features.State.Noclip, function(v)
+	UI.AddToggle(flightSec, "Noclip (Pass Through Walls)", Features.State.Noclip, function(v)
 		Features.State.Noclip = v
 		if Config.Movement then Config.Movement.Noclip = v end
 		saveConfig()
@@ -400,7 +400,7 @@ local success, err = pcall(function()
 	local tpSec = UI.AddSection(moveFrame, "Stage Teleports", 3)
 	for idx, stageName in ipairs(stageList) do
 		if stageName ~= "All" then
-			UI.AddButton(tpSec, "📍 Teleport to " .. stageName, function()
+			UI.AddButton(tpSec, "Teleport to " .. stageName, function()
 				local pos = Features.StagePositions[stageName]
 				if pos then Features.TeleportTo(pos) end
 			end, idx)
@@ -408,7 +408,7 @@ local success, err = pcall(function()
 	end
 
 	------------------------------------------------
-	-- 👁️ 6. VISUALS TAB
+	-- 6. VISUALS TAB
 	------------------------------------------------
 	local visFrame = UI.tabs["Visuals"].Frame
 
@@ -421,19 +421,48 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 1)
 
-	UI.AddToggle(espSec, "🥚 Egg ESP (Name & Stage Distance)", Features.State.EggESP, function(v)
+	UI.AddToggle(espSec, "Egg ESP (Name & Stage Distance)", Features.State.EggESP, function(v)
 		Features.State.EggESP = v
 		if Config.Visuals then Config.Visuals.EggESP = v end
 		Features.UpdateESP()
 		saveConfig()
 	end, 2)
 
-	UI.AddToggle(espSec, "👤 Player ESP (Level & Names)", Features.State.PlayerESP, function(v)
+	UI.AddToggle(espSec, "Player ESP (Level & Names)", Features.State.PlayerESP, function(v)
 		Features.State.PlayerESP = v
 		if Config.Visuals then Config.Visuals.PlayerESP = v end
 		Features.UpdateESP()
 		saveConfig()
 	end, 3)
+
+	------------------------------------------------
+	-- 7. SETTINGS TAB
+	------------------------------------------------
+	local setFrame = UI.tabs["Settings"].Frame
+
+	local safetySec = UI.AddSection(setFrame, "Safety & Performance", 1)
+
+	UI.AddToggle(safetySec, "Anti-AFK (Prevent Disconnect)", Features.State.AntiAFK, function(v)
+		Features.State.AntiAFK = v
+		if Config.Settings then Config.Settings.AntiAFK = v end
+		saveConfig()
+	end, 1)
+
+	UI.AddToggle(safetySec, "Low Graphics Mode (Boost FPS)", Features.State.LowGraphics, function(v)
+		Features.State.LowGraphics = v
+		if Config.Settings then Config.Settings.LowGraphics = v end
+		saveConfig()
+	end, 2)
+
+	local configSec = UI.AddSection(setFrame, "Configuration", 2)
+
+	UI.AddButton(configSec, "Save Current Settings", function()
+		saveConfig()
+	end, 1)
+
+	UI.AddButton(configSec, "Reset All to Defaults", function()
+		if _G.HipHubResetConfig then _G.HipHubResetConfig() end
+	end, 2)
 
 	------------------------------------------------
 	-- 🔄 LIVE STATS UPDATER
