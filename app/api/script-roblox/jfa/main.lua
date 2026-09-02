@@ -183,16 +183,20 @@ local success, err = pcall(function()
 	------------------------------------------------
 	local farmFrame = UI.tabs["Farming"].Frame
 
+	local stageList = { "All", "Meadow", "Coral Reef", "Winter", "Desert", "Crystal Mines", "Jungle", "Mystic Isles", "Prehistoric", "Celestial Heights" }
+
+	local animalList = { "All", "ARCHAEOPTERYX", "Ankylosaurus", "Archerfish", "Barracuda", "Bat", "Bear", "Boxfish", "Brachiosaurus", "Bunny", "Butterflyfish", "CLASSIC DRAGON", "Capybara", "Cat", "Chicken", "Coral Goby", "Cowfish", "Crab", "Crocodile", "Elephant", "FIRE PHOENIX", "Frog", "GARUDA", "Gallimimus", "Giraffe", "Goat", "Golden Retriver", "Goldfish", "Gorilla", "Guienna Pig", "Hamster", "Horse", "Jellyfish", "Kangaroo", "Koala", "Lion", "Lionfish", "Lizard", "Llama", "MICRORAPTOR", "Mammoth", "Moorish Idol", "Ostrich", "Owl", "PEGASUS", "PLESIOSAUR", "Parrot", "Pigeon", "Polar Bear", "Pony", "Prehistoric Dragonfly", "Prehistoric Moth", "Pufferfish", "Regal Angelfish", "SIMURGH", "STYMPHALIANBIRD", "Sailfish", "Seahorse", "Seal", "Snail", "Spinosaurus", "Stingray", "Swordfish", "T-Rex", "Triceratops", "Triple Cobra", "Trumpetfish", "Tuna", "Turtle", "Unicorn", "Velociraptor", "WYVERN", "Whale", "Wobbegong", "Wolf", "Zebra" }
+
+	local eggList = { "All", "ARCHAEOPTERYX Egg", "Ankylosaurus Egg", "Archerfish Egg", "Barracuda Egg", "Bat Egg", "Bear Egg", "Boxfish Egg", "Brachiosaurus Egg", "Bunny Egg", "Butterflyfish Egg", "CLASSIC DRAGON Egg", "Capybara Egg", "Cat Egg", "Chicken Egg", "Coral Goby Egg", "Cowfish Egg", "Crab Egg", "Crocodile Egg", "Elephant Egg", "FIRE PHOENIX Egg", "Frog Egg", "GARUDA Egg", "Gallimimus Egg", "Giraffe Egg", "Goat Egg", "Golden Retriver Egg", "Goldfish Egg", "Gorilla Egg", "Guienna Pig Egg", "Hamster Egg", "Horse Egg", "Jellyfish Egg", "Kangaroo Egg", "Koala Egg", "Lion Egg", "Lionfish Egg", "Lizard Egg", "Llama Egg", "MICRORAPTOR Egg", "Mammoth Egg", "Moorish Idol Egg", "Ostrich Egg", "Owl Egg", "PEGASUS Egg", "PLESIOSAUR Egg", "Parrot Egg", "Pigeon Egg", "Polar Bear Egg", "Pony Egg", "Prehistoric Dragonfly Egg", "Prehistoric Moth Egg", "Pufferfish Egg", "Regal Angelfish Egg", "SIMURGH Egg", "STYMPHALIANBIRD Egg", "Sailfish Egg", "Seahorse Egg", "Seal Egg", "Snail Egg", "Spinosaurus Egg", "Stingray Egg", "Swordfish Egg", "T-Rex Egg", "Triceratops Egg", "Triple Cobra Egg", "Trumpetfish Egg", "Tuna Egg", "Turtle Egg", "Unicorn Egg", "Velociraptor Egg", "WYVERN Egg", "Whale Egg", "Wobbegong Egg", "Wolf Egg", "Zebra Egg" }
+
 	local stealSec = UI.AddSection(farmFrame, "Egg Auto-Stealing", 1)
 
-	local stageList = { "All", "Meadow", "Coral Reef", "Winter", "Desert", "Crystal Mines", "Jungle", "Mystic Isles", "Prehistoric", "Celestial Heights" }
 	UI.AddMultiDropdown(stealSec, "Target Stages to Steal", stageList, Features.State.SelectedStages or { ["All"] = true }, function(map)
 		Features.State.SelectedStages = map
 		if Config.Farming then Config.Farming.SelectedStages = map end
 		saveConfig()
 	end, 1)
 
-	local animalList = { "All", "Capybara", "Gorilla", "Hamster", "Lion", "Kangaroo", "Turtle", "Goldfish", "Spinosaurus", "Whale", "Mammoth", "Prehistoric Dragonfly", "Elephant", "Crocodile", "Seal", "Jellyfish", "Lionfish", "Polar Bear" }
 	UI.AddMultiDropdown(stealSec, "Target Animals to Steal", animalList, Features.State.SelectedAnimals or { ["All"] = true }, function(map)
 		Features.State.SelectedAnimals = map
 		if Config.Farming then Config.Farming.SelectedAnimals = map end
@@ -207,9 +211,9 @@ local success, err = pcall(function()
 
 	local plotSec = UI.AddSection(farmFrame, "Plot & Pet Management", 2)
 
-	UI.AddMultiDropdown(plotSec, "Target Eggs to Auto-Place", animalList, Features.State.SelectedPlaceAnimals or { ["All"] = true }, function(map)
-		Features.State.SelectedPlaceAnimals = map
-		if Config.Farming then Config.Farming.SelectedPlaceAnimals = map end
+	UI.AddMultiDropdown(plotSec, "Target Eggs to Auto-Place", eggList, Features.State.SelectedPlaceEggs or { ["All"] = true }, function(map)
+		Features.State.SelectedPlaceEggs = map
+		if Config.Farming then Config.Farming.SelectedPlaceEggs = map end
 		saveConfig()
 	end, 1)
 
@@ -237,20 +241,26 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 5)
 
+	UI.AddMultiDropdown(plotSec, "Target Animals to Auto-Sell", animalList, Features.State.SelectedSellAnimals or { ["All"] = true }, function(map)
+		Features.State.SelectedSellAnimals = map
+		if Config.Farming then Config.Farming.SelectedSellAnimals = map end
+		saveConfig()
+	end, 6)
+
 	UI.AddToggle(plotSec, "💵 Auto Sell Animals", Features.State.AutoSellPets, function(v)
 		Features.State.AutoSellPets = v
 		if Config.Farming then Config.Farming.AutoSellPets = v end
 		saveConfig()
-	end, 6)
+	end, 7)
 
 	UI.AddButton(plotSec, "🏠 Teleport to My Plot", function()
 		local myPlot = Features.GetMyPlot()
 		if myPlot then Features.TeleportTo(myPlot) end
-	end, 7)
+	end, 8)
 
 	UI.AddButton(plotSec, "🏪 Teleport to Sell Zone", function()
 		Features.TeleportTo(Features.POIPositions["Sell Zone"])
-	end, 8)
+	end, 9)
 
 	------------------------------------------------
 	-- 🛒 3. SHOPS & BOOSTS TAB
@@ -279,19 +289,19 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 1)
 
-	UI.AddToggle(rewardsSec, "📖 Auto Claim Animal Index Rewards", Features.State.AutoClaimIndex, function(v)
+	UI.AddToggle(rewardsSec, "🎁 Auto Claim Animal Index Rewards", Features.State.AutoClaimIndex, function(v)
 		Features.State.AutoClaimIndex = v
 		if Config.Shops then Config.Shops.AutoClaimIndex = v end
 		saveConfig()
 	end, 2)
 
-	UI.AddToggle(rewardsSec, "💰 Auto Claim Offline Rewards", Features.State.AutoClaimOffline, function(v)
+	UI.AddToggle(rewardsSec, "⌛ Auto Claim Offline Rewards", Features.State.AutoClaimOffline, function(v)
 		Features.State.AutoClaimOffline = v
 		if Config.Shops then Config.Shops.AutoClaimOffline = v end
 		saveConfig()
 	end, 3)
 
-	UI.AddToggle(rewardsSec, "🎁 Auto Claim Group Reward (+500 XP)", Features.State.AutoClaimGroup, function(v)
+	UI.AddToggle(rewardsSec, "👥 Auto Claim Group Rewards", Features.State.AutoClaimGroup, function(v)
 		Features.State.AutoClaimGroup = v
 		if Config.Shops then Config.Shops.AutoClaimGroup = v end
 		saveConfig()
@@ -310,15 +320,15 @@ local success, err = pcall(function()
 	------------------------------------------------
 	local defFrame = UI.tabs["Defense"].Frame
 
-	local guardSec = UI.AddSection(defFrame, "Guard Security & Bypass", 1)
+	local guardSec = UI.AddSection(defFrame, "Guard & Penalty Defense", 1)
 
-	UI.AddToggle(guardSec, "🛡️ Disable / Delete Client Guards", Features.State.DisableGuards, function(v)
+	UI.AddToggle(guardSec, "🛡️ Disable Client Guard Aggro/Follow", Features.State.DisableGuards, function(v)
 		Features.State.DisableGuards = v
 		if Config.Defense then Config.Defense.DisableGuards = v end
 		saveConfig()
 	end, 1)
 
-	UI.AddToggle(guardSec, "🥚 Anti-Egg-Drop (Godmode)", Features.State.AntiEggDrop, function(v)
+	UI.AddToggle(guardSec, "🔒 Anti Egg Drop (Stay in Hand)", Features.State.AntiEggDrop, function(v)
 		Features.State.AntiEggDrop = v
 		if Config.Defense then Config.Defense.AntiEggDrop = v end
 		saveConfig()
@@ -398,19 +408,26 @@ local success, err = pcall(function()
 
 	local espSec = UI.AddSection(visFrame, "ESP & Visual Highlights", 1)
 
+	UI.AddMultiDropdown(espSec, "Egg ESP Stage Filter", stageList, Features.State.ESPSelectedStages or { ["All"] = true }, function(map)
+		Features.State.ESPSelectedStages = map
+		if Config.Visuals then Config.Visuals.ESPSelectedStages = map end
+		Features.UpdateESP()
+		saveConfig()
+	end, 1)
+
 	UI.AddToggle(espSec, "🥚 Egg ESP (Name & Stage Distance)", Features.State.EggESP, function(v)
 		Features.State.EggESP = v
 		if Config.Visuals then Config.Visuals.EggESP = v end
 		Features.UpdateESP()
 		saveConfig()
-	end, 1)
+	end, 2)
 
 	UI.AddToggle(espSec, "👤 Player ESP (Level & Names)", Features.State.PlayerESP, function(v)
 		Features.State.PlayerESP = v
 		if Config.Visuals then Config.Visuals.PlayerESP = v end
 		Features.UpdateESP()
 		saveConfig()
-	end, 2)
+	end, 3)
 
 	------------------------------------------------
 	-- 🔄 LIVE STATS UPDATER

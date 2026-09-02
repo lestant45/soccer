@@ -29,11 +29,12 @@ Features.State = {
 	SelectedStages = { ["All"] = true },
 	SelectedAnimals = { ["All"] = true },
 	AutoPlaceEggs = false,
-	SelectedPlaceAnimals = { ["All"] = true },
+	SelectedPlaceEggs = { ["All"] = true },
 	AutoHatchEggs = false,
 	AutoEquipBest = false,
 	AutoUpgradePen = false,
 	AutoSellPets = false,
+	SelectedSellAnimals = { ["All"] = true },
 
 	-- Shops & Boosts
 	AutoBuyTrails = false,
@@ -59,6 +60,7 @@ Features.State = {
 
 	-- Visuals / ESP
 	EggESP = false,
+	ESPSelectedStages = { ["All"] = true },
 	GuardESP = false,
 	PlayerESP = false,
 	PlotESP = false,
@@ -113,7 +115,7 @@ Features.StagePositions = {
 
 Features.POIPositions = {
 	["Spawn / Start"] = Vector3.new(0, 5, 0),
-	["Sell Zone"] = Vector3.new(-38, 5, -25),
+	["Sell Zone"] = Vector3.new(142.37, -1.04, -22.36),
 	["Mutation Machine"] = Vector3.new(38, 5, -25),
 	["Group Rewards"] = Vector3.new(-20, 5, -40),
 	["Coil Shop"] = Vector3.new(20, 5, -40)
@@ -371,7 +373,7 @@ function Features.StartStealLoop()
 	end)
 end
 
--- Auto Place Eggs onto Plot
+-- Auto Place Eggs onto Plot (Equips tool first & raycasts ground)
 task.spawn(function()
 	while true do
 		if Features.State.AutoPlaceEggs then
@@ -379,21 +381,22 @@ task.spawn(function()
 				local myPlot = Features.GetMyPlot()
 				if not myPlot then return end
 
-				local regionName = EggsSettings and EggsSettings.Placement and EggsSettings.Placement.RegionName or "Detector"
+				local eggsSettings = EggsSettings
+				local regionName = eggsSettings and eggsSettings.Placement and eggsSettings.Placement.RegionName or "Detector"
 				local detector = myPlot:FindFirstChild(regionName) or myPlot:FindFirstChild("Detector") or myPlot:FindFirstChild("DefaultSize") or myPlot:FindFirstChildWhichIsA("BasePart")
 				if not detector then return end
 
 				local backpack = LocalPlayer:FindFirstChild("Backpack")
 				local char = Features.GetCharacter()
-				local selPlace = Features.State.SelectedPlaceAnimals or { ["All"] = true }
+				local humanoid = Features.GetHumanoid()
+				local selPlace = Features.State.SelectedPlaceEggs or { ["All"] = true }
 
 				-- Scan Backpack and Character for Egg Tools
 				local eggTools = {}
 				local function checkTool(tool)
 					if tool:IsA("Tool") and (tool:GetAttribute("IsEggTool") or tool:GetAttribute("EggId")) then
-						local rawName = tool.Name
-						local cleanName = rawName:gsub(" Egg", ""):gsub("Egg", ""):gsub("^%s*(.-)%s*$", "%1")
-						if selPlace["All"] or selPlace[rawName] or selPlace[cleanName] then
+						local toolName = tool.Name -- e.g. "Chicken Egg", "Golden Retriver Egg"
+						if selPlace["All"] or selPlace[toolName] then
 							table.insert(eggTools, tool)
 						end
 					end
@@ -409,6 +412,13 @@ task.spawn(function()
 				for _, tool in ipairs(eggTools) do
 					local eggId = tool:GetAttribute("EggId")
 					if eggId and PlaceEggRequest then
+						-- 1. Equip the egg tool so character holds it
+						if humanoid and tool.Parent == backpack then
+							humanoid:EquipTool(tool)
+							task.wait(0.15)
+						end
+
+						-- 2. Raycast to find exact plot ground
 						local rx = detector.Position.X + math.random(-15, 15)
 						local rz = detector.Position.Z + math.random(-15, 15)
 						local origin = Vector3.new(rx, detector.Position.Y + 20, rz)
@@ -419,8 +429,9 @@ task.spawn(function()
 						local rayResult = Workspace:Raycast(origin, Vector3.new(0, -50, 0), rayParams)
 						local targetPos = rayResult and rayResult.Position or Vector3.new(rx, detector.Position.Y - detector.Size.Y * 0.5 + 0.1, rz)
 
+						-- 3. Fire PlaceEggRequest
 						PlaceEggRequest:FireServer(eggId, targetPos)
-						task.wait(0.2)
+						task.wait(0.25)
 					end
 				end
 			end)
@@ -447,18 +458,13 @@ task.spawn(function()
 								if PetInventoryRemote then
 									PetInventoryRemote:FireServer("EggAction", eggId)
 								end
-								-- Also try ProximityPrompt if available
-								local prompt = eggInstance:FindFirstChildWhichIsA("ProximityPrompt", true)
-								if prompt and prompt.Enabled and prompt.ActionText == "Open" or prompt.ActionText == "Claim!" then
-									Features.InteractPrompt(prompt)
-								end
 							end
 						end
 					end
 				end
 			end)
 		end
-		task.wait(0.5)
+		task.wait(1.5)
 	end
 end)
 
@@ -490,17 +496,60 @@ task.spawn(function()
 	end
 end)
 
--- Auto Sell Pets
+-- Auto Sell Animals (Equips selected animals and sells at sell zone)
 task.spawn(function()
 	while true do
 		if Features.State.AutoSellPets then
 			pcall(function()
-				if SellRemote then
-					SellRemote:FireServer()
+				local backpack = LocalPlayer:FindFirstChild("Backpack")
+				local char = Features.GetCharacter()
+				local humanoid = Features.GetHumanoid()
+				local root = Features.GetRootPart()
+				local sellZone = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Sell")
+				local detector = sellZone and sellZone:FindFirstChild("Detector")
+				if not detector or not root or not humanoid then return end
+
+				local selSell = Features.State.SelectedSellAnimals or { ["All"] = true }
+
+				-- Scan Backpack and Character for Animals (Pet Tools)
+				local animalsToSell = {}
+				local function checkPet(tool)
+					if tool:IsA("Tool") and (tool:GetAttribute("IsPetInventoryTool") or tool:GetAttribute("PetId")) then
+						local animalName = tool:GetAttribute("AnimalName") or tool.Name -- e.g. "Pigeon", "Coral Goby"
+						if selSell["All"] or selSell[animalName] or selSell[tool.Name] then
+							table.insert(animalsToSell, tool)
+						end
+					end
+				end
+
+				if backpack then
+					for _, tool in ipairs(backpack:GetChildren()) do checkPet(tool) end
+				end
+				if char then
+					for _, tool in ipairs(char:GetChildren()) do checkPet(tool) end
+				end
+
+				if #animalsToSell > 0 then
+					-- Teleport to sell zone
+					root.CFrame = detector.CFrame + Vector3.new(0, 3, 0)
+					task.wait(0.2)
+
+					for _, tool in ipairs(animalsToSell) do
+						if tool and tool.Parent and (tool.Parent == backpack or tool.Parent == char) then
+							if tool.Parent == backpack then
+								humanoid:EquipTool(tool)
+								task.wait(0.15)
+							end
+							if SellRemote then
+								SellRemote:FireServer()
+							end
+							task.wait(0.3)
+						end
+					end
 				end
 			end)
 		end
-		task.wait(3)
+		task.wait(2.0)
 	end
 end)
 
@@ -751,40 +800,51 @@ function Features.UpdateESP()
 	-- Egg ESP
 	if Features.State.EggESP then
 		pcall(function()
-			local eggs = Features.GetAllSpawnedEggs()
-			for _, egg in ipairs(eggs) do
-				if egg.Part then
-					local bb = Instance.new("BillboardGui")
-					bb.Name = "HipHub_EggESP"
-					bb.Adornee = egg.Part
-					bb.Size = UDim2.new(0, 140, 0, 40)
-					bb.StudsOffset = Vector3.new(0, 2.5, 0)
-					bb.AlwaysOnTop = true
-					bb.Parent = egg.Part
+			local map = Workspace:FindFirstChild("Map")
+			local stages = map and map:FindFirstChild("Stages")
+			local espStages = Features.State.ESPSelectedStages or { ["All"] = true }
+			if stages then
+				for _, stage in ipairs(stages:GetChildren()) do
+					local stageName = stage.Name
+					if espStages["All"] or espStages[stageName] then
+						local spawnedEggs = stage:FindFirstChild("SpawnedEggs")
+						if spawnedEggs then
+							for _, eggModel in ipairs(spawnedEggs:GetChildren()) do
+								local rootPart = eggModel:FindFirstChild("EggRoot") or eggModel:FindFirstChildWhichIsA("BasePart") or eggModel.PrimaryPart
+								if rootPart then
+									local bb = Instance.new("BillboardGui")
+									bb.Name = "HipHub_EggESP"
+									bb.Adornee = rootPart
+									bb.Size = UDim2.new(0, 140, 0, 40)
+									bb.StudsOffset = Vector3.new(0, 2.5, 0)
+									bb.AlwaysOnTop = true
+									bb.Parent = rootPart
 
-					local lbl = Instance.new("TextLabel")
-					lbl.Size = UDim2.new(1, 0, 1, 0)
-					lbl.BackgroundTransparency = 1
-					lbl.Text = string.format("🥚 %s\n[%s]", egg.Name, egg.Stage)
-					lbl.TextColor3 = Color3.fromRGB(245, 158, 11)
-					lbl.TextStrokeTransparency = 0.2
-					lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-					lbl.TextSize = 12
-					lbl.Font = Enum.Font.GothamBold
-					lbl.Parent = bb
+									local lbl = Instance.new("TextLabel")
+									lbl.Size = UDim2.new(1, 0, 1, 0)
+									lbl.BackgroundTransparency = 1
+									lbl.Text = string.format("🥚 %s\n[%s]", eggModel.Name, stageName)
+									lbl.TextColor3 = Color3.fromRGB(0, 200, 255)
+									lbl.TextStrokeTransparency = 0.2
+									lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+									lbl.TextSize = 12
+									lbl.Font = Enum.Font.GothamBold
+									lbl.Parent = bb
+									table.insert(espInstances, bb)
 
-					local highlight = Instance.new("Highlight")
-					highlight.Name = "HipHub_EggHighlight"
-					highlight.Adornee = egg.Model
-					highlight.FillColor = Color3.fromRGB(245, 158, 11)
-					highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-					highlight.FillTransparency = 0.6
-					highlight.OutlineTransparency = 0.2
-					highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-					highlight.Parent = egg.Model
-
-					table.insert(espInstances, bb)
-					table.insert(espInstances, highlight)
+									local highlight = Instance.new("Highlight")
+									highlight.Name = "HipHub_EggHighlight"
+									highlight.Adornee = eggModel
+									highlight.FillColor = Color3.fromRGB(0, 200, 255)
+									highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+									highlight.FillTransparency = 0.6
+									highlight.OutlineTransparency = 0.2
+									highlight.Parent = eggModel
+									table.insert(espInstances, highlight)
+								end
+							end
+						end
+					end
 				end
 			end
 		end)

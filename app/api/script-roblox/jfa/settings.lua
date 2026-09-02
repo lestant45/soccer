@@ -34,11 +34,12 @@ local success, err = pcall(function()
 			SelectedStages = { ["All"] = true },
 			SelectedAnimals = { ["All"] = true },
 			AutoPlaceEggs = false,
-			SelectedPlaceAnimals = { ["All"] = true },
+			SelectedPlaceEggs = { ["All"] = true },
 			AutoHatchEggs = false,
 			AutoEquipBest = false,
 			AutoUpgradePen = false,
-			AutoSellPets = false
+			AutoSellPets = false,
+			SelectedSellAnimals = { ["All"] = true }
 		},
 		Shops = {
 			AutoBuyTrails = false,
@@ -64,6 +65,7 @@ local success, err = pcall(function()
 		},
 		Visuals = {
 			EggESP = false,
+			ESPSelectedStages = { ["All"] = true },
 			GuardESP = false,
 			PlayerESP = false,
 			PlotESP = false
