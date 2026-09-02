@@ -31,9 +31,10 @@ local success, err = pcall(function()
 		},
 		Farming = {
 			AutoStealEggs = false,
-			SelectedStage = "All",
-			SelectedAnimal = "All",
+			SelectedStages = { ["All"] = true },
+			SelectedAnimals = { ["All"] = true },
 			AutoPlaceEggs = false,
+			SelectedPlaceAnimals = { ["All"] = true },
 			AutoHatchEggs = false,
 			AutoEquipBest = false,
 			AutoUpgradePen = false,

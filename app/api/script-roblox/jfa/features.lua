@@ -26,9 +26,10 @@ Features.State = {
 
 	-- Farming
 	AutoStealEggs = false,
-	SelectedStage = "All",       -- "All", "Meadow", "Coral Reef", "Winter", "Desert", "Crystal Mines", "Jungle", "Mystic Isles", "Prehistoric", "Celestial Heights"
-	SelectedAnimal = "All",      -- "All", or specific animal name
+	SelectedStages = { ["All"] = true },
+	SelectedAnimals = { ["All"] = true },
 	AutoPlaceEggs = false,
+	SelectedPlaceAnimals = { ["All"] = true },
 	AutoHatchEggs = false,
 	AutoEquipBest = false,
 	AutoUpgradePen = false,
@@ -289,14 +290,17 @@ function Features.GetAllSpawnedEggs()
 	local stages = map and map:FindFirstChild("Stages")
 	if not stages then return eggs end
 
+	local selStages = Features.State.SelectedStages or { ["All"] = true }
+	local selAnimals = Features.State.SelectedAnimals or { ["All"] = true }
+
 	for _, stage in ipairs(stages:GetChildren()) do
 		local stageName = stage.Name
-		if Features.State.SelectedStage == "All" or Features.State.SelectedStage == stageName then
+		if selStages["All"] or selStages[stageName] then
 			local spawnedEggs = stage:FindFirstChild("SpawnedEggs")
 			if spawnedEggs then
 				for _, eggModel in ipairs(spawnedEggs:GetChildren()) do
 					local eggName = eggModel.Name
-					if Features.State.SelectedAnimal == "All" or Features.State.SelectedAnimal == eggName then
+					if selAnimals["All"] or selAnimals[eggName] then
 						local prompt = eggModel:FindFirstChildWhichIsA("ProximityPrompt", true)
 						local rootPart = eggModel:FindFirstChild("EggRoot") or eggModel:FindFirstChildWhichIsA("BasePart") or eggModel.PrimaryPart
 						if prompt and prompt.Enabled and rootPart then
@@ -335,7 +339,7 @@ function Features.StartStealLoop()
 						-- Full backpack -> Teleport back to Plot to place eggs
 						local myPlot = Features.GetMyPlot()
 						if myPlot then
-							local base = myPlot:FindFirstChild("DefaultSize") or myPlot:FindFirstChild("Detector") or myPlot:FindFirstChildWhichIsA("BasePart")
+							local base = myPlot:FindFirstChild("Detector") or myPlot:FindFirstChild("DefaultSize") or myPlot:FindFirstChildWhichIsA("BasePart")
 							if base and root then
 								root.CFrame = base.CFrame + Vector3.new(0, 3, 0)
 								task.wait(0.5)
@@ -375,37 +379,48 @@ task.spawn(function()
 				local myPlot = Features.GetMyPlot()
 				if not myPlot then return end
 
-				local regionName = EggsSettings and EggsSettings.Placement and EggsSettings.Placement.RegionName or "DefaultSize"
-				local plotGround = myPlot:FindFirstChild(regionName) or myPlot:FindFirstChild("DefaultSize") or myPlot:FindFirstChildWhichIsA("BasePart")
-				if not plotGround then return end
+				local regionName = EggsSettings and EggsSettings.Placement and EggsSettings.Placement.RegionName or "Detector"
+				local detector = myPlot:FindFirstChild(regionName) or myPlot:FindFirstChild("Detector") or myPlot:FindFirstChild("DefaultSize") or myPlot:FindFirstChildWhichIsA("BasePart")
+				if not detector then return end
 
 				local backpack = LocalPlayer:FindFirstChild("Backpack")
 				local char = Features.GetCharacter()
+				local selPlace = Features.State.SelectedPlaceAnimals or { ["All"] = true }
 
 				-- Scan Backpack and Character for Egg Tools
 				local eggTools = {}
-				if backpack then
-					for _, tool in ipairs(backpack:GetChildren()) do
-						if tool:IsA("Tool") and (tool:GetAttribute("IsEggTool") or tool:GetAttribute("EggId")) then
+				local function checkTool(tool)
+					if tool:IsA("Tool") and (tool:GetAttribute("IsEggTool") or tool:GetAttribute("EggId")) then
+						local rawName = tool.Name
+						local cleanName = rawName:gsub(" Egg", ""):gsub("Egg", ""):gsub("^%s*(.-)%s*$", "%1")
+						if selPlace["All"] or selPlace[rawName] or selPlace[cleanName] then
 							table.insert(eggTools, tool)
 						end
 					end
 				end
+
+				if backpack then
+					for _, tool in ipairs(backpack:GetChildren()) do checkTool(tool) end
+				end
 				if char then
-					for _, tool in ipairs(char:GetChildren()) do
-						if tool:IsA("Tool") and (tool:GetAttribute("IsEggTool") or tool:GetAttribute("EggId")) then
-							table.insert(eggTools, tool)
-						end
-					end
+					for _, tool in ipairs(char:GetChildren()) do checkTool(tool) end
 				end
 
 				for _, tool in ipairs(eggTools) do
 					local eggId = tool:GetAttribute("EggId")
 					if eggId and PlaceEggRequest then
-						-- Calculate a valid ground position on the plot
-						local targetPos = plotGround.Position + Vector3.new(math.random(-8, 8), 0.5, math.random(-8, 8))
+						local rx = detector.Position.X + math.random(-15, 15)
+						local rz = detector.Position.Z + math.random(-15, 15)
+						local origin = Vector3.new(rx, detector.Position.Y + 20, rz)
+						local rayParams = RaycastParams.new()
+						rayParams.FilterDescendantsInstances = { char, myPlot:FindFirstChild("PlacedEggs"), myPlot:FindFirstChild("PlacedAnimals") }
+						rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+						local rayResult = Workspace:Raycast(origin, Vector3.new(0, -50, 0), rayParams)
+						local targetPos = rayResult and rayResult.Position or Vector3.new(rx, detector.Position.Y - detector.Size.Y * 0.5 + 0.1, rz)
+
 						PlaceEggRequest:FireServer(eggId, targetPos)
-						task.wait(0.15)
+						task.wait(0.2)
 					end
 				end
 			end)

@@ -186,16 +186,16 @@ local success, err = pcall(function()
 	local stealSec = UI.AddSection(farmFrame, "Egg Auto-Stealing", 1)
 
 	local stageList = { "All", "Meadow", "Coral Reef", "Winter", "Desert", "Crystal Mines", "Jungle", "Mystic Isles", "Prehistoric", "Celestial Heights" }
-	UI.AddDropdown(stealSec, "Target Stage Filter", stageList, Features.State.SelectedStage or "All", function(v)
-		Features.State.SelectedStage = v
-		if Config.Farming then Config.Farming.SelectedStage = v end
+	UI.AddMultiDropdown(stealSec, "Target Stages to Steal", stageList, Features.State.SelectedStages or { ["All"] = true }, function(map)
+		Features.State.SelectedStages = map
+		if Config.Farming then Config.Farming.SelectedStages = map end
 		saveConfig()
 	end, 1)
 
 	local animalList = { "All", "Capybara", "Gorilla", "Hamster", "Lion", "Kangaroo", "Turtle", "Goldfish", "Spinosaurus", "Whale", "Mammoth", "Prehistoric Dragonfly", "Elephant", "Crocodile", "Seal", "Jellyfish", "Lionfish", "Polar Bear" }
-	UI.AddDropdown(stealSec, "Target Animal / Egg Filter", animalList, Features.State.SelectedAnimal or "All", function(v)
-		Features.State.SelectedAnimal = v
-		if Config.Farming then Config.Farming.SelectedAnimal = v end
+	UI.AddMultiDropdown(stealSec, "Target Animals to Steal", animalList, Features.State.SelectedAnimals or { ["All"] = true }, function(map)
+		Features.State.SelectedAnimals = map
+		if Config.Farming then Config.Farming.SelectedAnimals = map end
 		saveConfig()
 	end, 2)
 
@@ -207,44 +207,50 @@ local success, err = pcall(function()
 
 	local plotSec = UI.AddSection(farmFrame, "Plot & Pet Management", 2)
 
+	UI.AddMultiDropdown(plotSec, "Target Eggs to Auto-Place", animalList, Features.State.SelectedPlaceAnimals or { ["All"] = true }, function(map)
+		Features.State.SelectedPlaceAnimals = map
+		if Config.Farming then Config.Farming.SelectedPlaceAnimals = map end
+		saveConfig()
+	end, 1)
+
 	UI.AddToggle(plotSec, "📥 Auto Place Carried Eggs on Plot", Features.State.AutoPlaceEggs, function(v)
 		Features.State.AutoPlaceEggs = v
 		if Config.Farming then Config.Farming.AutoPlaceEggs = v end
 		saveConfig()
-	end, 1)
+	end, 2)
 
 	UI.AddToggle(plotSec, "🐣 Auto Hatch / Claim Ready Eggs", Features.State.AutoHatchEggs, function(v)
 		Features.State.AutoHatchEggs = v
 		if Config.Farming then Config.Farming.AutoHatchEggs = v end
 		saveConfig()
-	end, 2)
+	end, 3)
 
 	UI.AddToggle(plotSec, "⭐ Auto Equip Best Pets", Features.State.AutoEquipBest, function(v)
 		Features.State.AutoEquipBest = v
 		if Config.Farming then Config.Farming.AutoEquipBest = v end
 		saveConfig()
-	end, 3)
+	end, 4)
 
 	UI.AddToggle(plotSec, "🏡 Auto Upgrade Pen (Equip Slots)", Features.State.AutoUpgradePen, function(v)
 		Features.State.AutoUpgradePen = v
 		if Config.Farming then Config.Farming.AutoUpgradePen = v end
 		saveConfig()
-	end, 4)
+	end, 5)
 
 	UI.AddToggle(plotSec, "💵 Auto Sell Animals", Features.State.AutoSellPets, function(v)
 		Features.State.AutoSellPets = v
 		if Config.Farming then Config.Farming.AutoSellPets = v end
 		saveConfig()
-	end, 5)
+	end, 6)
 
 	UI.AddButton(plotSec, "🏠 Teleport to My Plot", function()
 		local myPlot = Features.GetMyPlot()
 		if myPlot then Features.TeleportTo(myPlot) end
-	end, 6)
+	end, 7)
 
 	UI.AddButton(plotSec, "🏪 Teleport to Sell Zone", function()
 		Features.TeleportTo(Features.POIPositions["Sell Zone"])
-	end, 7)
+	end, 8)
 
 	------------------------------------------------
 	-- 🛒 3. SHOPS & BOOSTS TAB

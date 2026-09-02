@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- 🐾 HipHub UI — Jump for Animals! (Ultra-Glassmorphic Component Library)
--- Theme: Cyber Emerald / Radiant Cyan Liquid Glass
+-- Theme: HipHub Default Cyber Cyan / Sapphire Blue Liquid Glass
 -- ==============================================================================
 
 if not game:IsLoaded() then
@@ -22,28 +22,28 @@ local success, err = pcall(function()
 	player:WaitForChild("PlayerGui")
 
 	------------------------------------------------
-	-- 🎨 DESIGN TOKENS
+	-- 🎨 DESIGN TOKENS (HIPHUB DEFAULT CYAN / BLUE THEME)
 	------------------------------------------------
 	local COLORS = {
-		glassPrimary   = Color3.fromRGB(8, 14, 22),
-		glassSurface   = Color3.fromRGB(12, 22, 34),
-		glassCard      = Color3.fromRGB(16, 28, 44),
-		glassHover     = Color3.fromRGB(24, 40, 62),
-		glassActive    = Color3.fromRGB(30, 52, 78),
-		accentEmerald  = Color3.fromRGB(16, 185, 129), -- Nature / Animal Emerald
-		accentCyan     = Color3.fromRGB(6, 182, 212),  -- Bright Cyan
+		glassPrimary   = Color3.fromRGB(8, 14, 26),
+		glassSurface   = Color3.fromRGB(12, 20, 36),
+		glassCard      = Color3.fromRGB(16, 26, 46),
+		glassHover     = Color3.fromRGB(24, 38, 66),
+		glassActive    = Color3.fromRGB(30, 48, 82),
+		accentCyan     = Color3.fromRGB(0, 200, 255),  -- HipHub Radiant Cyan
+		accentBlue     = Color3.fromRGB(0, 150, 255),  -- Sapphire Blue
 		accentGold     = Color3.fromRGB(245, 158, 11), -- Golden Mutation
 		accentViolet   = Color3.fromRGB(139, 92, 246), -- Rare / Mythic
-		accentGlow     = Color3.fromRGB(16, 185, 129),
-		accentMuted    = Color3.fromRGB(30, 60, 70),
-		toggleOn       = Color3.fromRGB(16, 185, 129),
-		toggleOff      = Color3.fromRGB(30, 42, 58),
-		textPrimary    = Color3.fromRGB(230, 245, 255),
-		textSecondary  = Color3.fromRGB(140, 170, 195),
-		textMuted      = Color3.fromRGB(90, 115, 140),
+		accentGlow     = Color3.fromRGB(0, 200, 255),
+		accentMuted    = Color3.fromRGB(25, 45, 75),
+		toggleOn       = Color3.fromRGB(0, 170, 255),
+		toggleOff      = Color3.fromRGB(28, 38, 56),
+		textPrimary    = Color3.fromRGB(235, 245, 255),
+		textSecondary  = Color3.fromRGB(145, 175, 210),
+		textMuted      = Color3.fromRGB(90, 120, 150),
 		textWhite      = Color3.fromRGB(255, 255, 255),
-		borderGlass    = Color3.fromRGB(35, 65, 85),
-		borderGlow     = Color3.fromRGB(16, 185, 129),
+		borderGlass    = Color3.fromRGB(35, 60, 95),
+		borderGlow     = Color3.fromRGB(0, 200, 255),
 		shadow         = Color3.fromRGB(2, 4, 8),
 		successGreen   = Color3.fromRGB(34, 197, 94),
 		warningYellow  = Color3.fromRGB(234, 179, 8),
@@ -98,7 +98,7 @@ local success, err = pcall(function()
 			local grad = Instance.new("UIGradient")
 			grad.Color = ColorSequence.new({
 				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-				ColorSequenceKeypoint.new(1, Color3.fromRGB(190, 230, 220)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 220, 255)),
 			})
 			grad.Rotation = opts.gradientRotation or 45
 			grad.Transparency = NumberSequence.new({
@@ -220,7 +220,7 @@ local success, err = pcall(function()
 	titleLabel.Size = UDim2.new(0, 240, 0, 24)
 	titleLabel.Position = UDim2.new(0, 48, 0.5, -12)
 	titleLabel.BackgroundTransparency = 1
-	titleLabel.Text = "HIPHUB <font color='#10B981'><b>JUMP FOR ANIMALS</b></font>"
+	titleLabel.Text = "HIPHUB <font color='#00C8FF'><b>JUMP FOR ANIMALS</b></font>"
 	titleLabel.RichText = true
 	titleLabel.TextColor3 = COLORS.textPrimary
 	titleLabel.TextSize = 15
@@ -235,11 +235,11 @@ local success, err = pcall(function()
 	versionTag.BackgroundColor3 = COLORS.glassCard
 	versionTag.BackgroundTransparency = 0.2
 	versionTag.Text = "v1.0.0"
-	versionTag.TextColor3 = COLORS.accentEmerald
+	versionTag.TextColor3 = COLORS.accentCyan
 	versionTag.TextSize = 10
 	versionTag.Font = Enum.Font.GothamBold
 	versionTag.Parent = topBar
-	applyGlass(versionTag, { corner = CORNER.small, stroke = true, strokeColor = COLORS.accentEmerald, strokeTransparency = 0.6 })
+	applyGlass(versionTag, { corner = CORNER.small, stroke = true, strokeColor = COLORS.accentCyan, strokeTransparency = 0.6 })
 
 	-- Status Badge
 	local statusBadge = Instance.new("Frame")
@@ -255,7 +255,7 @@ local success, err = pcall(function()
 	statusDot.Name = "Dot"
 	statusDot.Size = UDim2.new(0, 8, 0, 8)
 	statusDot.Position = UDim2.new(0, 9, 0.5, -4)
-	statusDot.BackgroundColor3 = COLORS.successGreen
+	statusDot.BackgroundColor3 = COLORS.accentCyan
 	statusDot.BorderSizePixel = 0
 	statusDot.Parent = statusBadge
 	applyGlass(statusDot, { corner = CORNER.pill })
@@ -329,7 +329,7 @@ local success, err = pcall(function()
 	navList.BackgroundTransparency = 1
 	navList.BorderSizePixel = 0
 	navList.ScrollBarThickness = 2
-	navList.ScrollBarImageColor3 = COLORS.accentEmerald
+	navList.ScrollBarImageColor3 = COLORS.accentCyan
 	navList.CanvasSize = UDim2.new(0, 0, 0, 0)
 	navList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	navList.Parent = sidebar
@@ -359,7 +359,7 @@ local success, err = pcall(function()
 			tabData.Frame.Visible = isTarget
 			if isTarget then
 				tween(tabData.Button, { BackgroundColor3 = COLORS.glassActive }, 0.2)
-				tabData.Button.UIStroke.Color = COLORS.accentEmerald
+				tabData.Button.UIStroke.Color = COLORS.accentCyan
 				tabData.Button.UIStroke.Transparency = 0.2
 				tabData.Button.Indicator.Visible = true
 				tabData.Button.Label.TextColor3 = COLORS.textPrimary
@@ -392,7 +392,7 @@ local success, err = pcall(function()
 		indicator.Name = "Indicator"
 		indicator.Size = UDim2.new(0, 3, 0, 20)
 		indicator.Position = UDim2.new(0, 4, 0.5, -10)
-		indicator.BackgroundColor3 = COLORS.accentEmerald
+		indicator.BackgroundColor3 = COLORS.accentCyan
 		indicator.BorderSizePixel = 0
 		indicator.Visible = false
 		indicator.Parent = tabBtn
@@ -422,7 +422,7 @@ local success, err = pcall(function()
 		tabContent.BackgroundTransparency = 1
 		tabContent.BorderSizePixel = 0
 		tabContent.ScrollBarThickness = 3
-		tabContent.ScrollBarImageColor3 = COLORS.accentEmerald
+		tabContent.ScrollBarImageColor3 = COLORS.accentCyan
 		tabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
 		tabContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		tabContent.Visible = false
@@ -477,7 +477,7 @@ local success, err = pcall(function()
 		header.Size = UDim2.new(1, 0, 0, 20)
 		header.BackgroundTransparency = 1
 		header.Text = string.upper(titleText)
-		header.TextColor3 = COLORS.accentEmerald
+		header.TextColor3 = COLORS.accentCyan
 		header.TextSize = 11
 		header.Font = Enum.Font.GothamBold
 		header.TextXAlignment = Enum.TextXAlignment.Left
@@ -517,7 +517,7 @@ local success, err = pcall(function()
 		toggleTrack.BackgroundColor3 = state and COLORS.toggleOn or COLORS.toggleOff
 		toggleTrack.Text = ""
 		toggleTrack.Parent = toggleFrame
-		applyGlass(toggleTrack, { corner = CORNER.pill, stroke = true, strokeColor = state and COLORS.accentEmerald or COLORS.borderGlass, strokeTransparency = 0.4 })
+		applyGlass(toggleTrack, { corner = CORNER.pill, stroke = true, strokeColor = state and COLORS.accentCyan or COLORS.borderGlass, strokeTransparency = 0.4 })
 
 		local knob = Instance.new("Frame")
 		knob.Name = "Knob"
@@ -531,7 +531,7 @@ local success, err = pcall(function()
 		local function updateToggle(animate)
 			local targetBg = state and COLORS.toggleOn or COLORS.toggleOff
 			local targetPos = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
-			local targetStroke = state and COLORS.accentEmerald or COLORS.borderGlass
+			local targetStroke = state and COLORS.accentCyan or COLORS.borderGlass
 			if animate then
 				tween(toggleTrack, { BackgroundColor3 = targetBg }, 0.2)
 				tween(knob, { Position = targetPos }, 0.2, Enum.EasingStyle.Back)
@@ -579,7 +579,7 @@ local success, err = pcall(function()
 		btn.Font = Enum.Font.GothamBold
 		btn.LayoutOrder = layoutOrder or 1
 		btn.Parent = parent
-		applyGlass(btn, { corner = CORNER.small, stroke = true, strokeColor = isDanger and COLORS.dangerRed or COLORS.accentEmerald, strokeTransparency = isDanger and 0.5 or 0.7 })
+		applyGlass(btn, { corner = CORNER.small, stroke = true, strokeColor = isDanger and COLORS.dangerRed or COLORS.accentCyan, strokeTransparency = isDanger and 0.5 or 0.7 })
 
 		local normalBg = isDanger and Color3.fromRGB(80, 25, 30) or COLORS.glassSurface
 		local hoverBg = isDanger and Color3.fromRGB(110, 35, 40) or COLORS.glassHover
@@ -628,7 +628,7 @@ local success, err = pcall(function()
 		valLabel.Position = UDim2.new(1, -65, 0, 4)
 		valLabel.BackgroundTransparency = 1
 		valLabel.Text = tostring(val) .. unit
-		valLabel.TextColor3 = COLORS.accentEmerald
+		valLabel.TextColor3 = COLORS.accentCyan
 		valLabel.TextSize = 12
 		valLabel.Font = Enum.Font.GothamBold
 		valLabel.TextXAlignment = Enum.TextXAlignment.Right
@@ -647,7 +647,7 @@ local success, err = pcall(function()
 		fill.Name = "Fill"
 		local pct = (val - minVal) / (maxVal - minVal)
 		fill.Size = UDim2.new(pct, 0, 1, 0)
-		fill.BackgroundColor3 = COLORS.accentEmerald
+		fill.BackgroundColor3 = COLORS.accentCyan
 		fill.BorderSizePixel = 0
 		fill.Parent = track
 		applyGlass(fill, { corner = CORNER.pill })
@@ -748,7 +748,7 @@ local success, err = pcall(function()
 		arrow.Position = UDim2.new(1, -26, 0, 0)
 		arrow.BackgroundTransparency = 1
 		arrow.Text = "▼"
-		arrow.TextColor3 = COLORS.accentEmerald
+		arrow.TextColor3 = COLORS.accentCyan
 		arrow.TextSize = 10
 		arrow.Parent = mainBtn
 
@@ -762,13 +762,13 @@ local success, err = pcall(function()
 		listFrame.BackgroundTransparency = 0.05
 		listFrame.BorderSizePixel = 0
 		listFrame.ScrollBarThickness = 2
-		listFrame.ScrollBarImageColor3 = COLORS.accentEmerald
+		listFrame.ScrollBarImageColor3 = COLORS.accentCyan
 		listFrame.Visible = false
 		listFrame.ZIndex = 50
 		listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 		listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 		listFrame.Parent = dropdownContainer
-		applyGlass(listFrame, { corner = CORNER.small, stroke = true, strokeColor = COLORS.accentEmerald, strokeTransparency = 0.5 })
+		applyGlass(listFrame, { corner = CORNER.small, stroke = true, strokeColor = COLORS.accentCyan, strokeTransparency = 0.5 })
 
 		local listLayout = Instance.new("UIListLayout")
 		listLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -815,7 +815,7 @@ local success, err = pcall(function()
 				optBtn.BackgroundColor3 = (opt == selected) and COLORS.glassActive or COLORS.glassSurface
 				optBtn.BackgroundTransparency = 0.4
 				optBtn.Text = opt
-				optBtn.TextColor3 = (opt == selected) and COLORS.accentEmerald or COLORS.textPrimary
+				optBtn.TextColor3 = (opt == selected) and COLORS.accentCyan or COLORS.textPrimary
 				optBtn.TextSize = 11
 				optBtn.Font = Enum.Font.GothamMedium
 				optBtn.ZIndex = 51
@@ -858,6 +858,263 @@ local success, err = pcall(function()
 		}
 	end
 
+	local function addMultiDropdown(parent, labelText, options, defaultSelectedList, callback, layoutOrder)
+		local selectedMap = {}
+		if defaultSelectedList then
+			if typeof(defaultSelectedList) == "table" then
+				for k, v in pairs(defaultSelectedList) do
+					if typeof(k) == "string" and v == true then
+						selectedMap[k] = true
+					elseif typeof(v) == "string" then
+						selectedMap[v] = true
+					end
+				end
+			elseif typeof(defaultSelectedList) == "string" then
+				selectedMap[defaultSelectedList] = true
+			end
+		end
+		if next(selectedMap) == nil then
+			selectedMap["All"] = true
+		end
+
+		local isOpen = false
+
+		local dropdownContainer = Instance.new("Frame")
+		dropdownContainer.Name = "MultiDropdown_" .. labelText
+		dropdownContainer.Size = UDim2.new(1, 0, 0, 60)
+		dropdownContainer.BackgroundTransparency = 1
+		dropdownContainer.ClipsDescendants = false
+		dropdownContainer.LayoutOrder = layoutOrder or 1
+		dropdownContainer.Parent = parent
+
+		local label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.Size = UDim2.new(1, 0, 0, 18)
+		label.BackgroundTransparency = 1
+		label.Text = labelText
+		label.TextColor3 = COLORS.textSecondary
+		label.TextSize = 11
+		label.Font = Enum.Font.GothamMedium
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.Parent = dropdownContainer
+
+		local mainBtn = Instance.new("TextButton")
+		mainBtn.Name = "MainBtn"
+		mainBtn.Size = UDim2.new(1, 0, 0, 34)
+		mainBtn.Position = UDim2.new(0, 0, 0, 22)
+		mainBtn.BackgroundColor3 = COLORS.glassSurface
+		mainBtn.BackgroundTransparency = 0.3
+		mainBtn.Text = ""
+		mainBtn.Parent = dropdownContainer
+		applyGlass(mainBtn, { corner = CORNER.small, stroke = true, strokeColor = COLORS.borderGlass, strokeTransparency = 0.7 })
+
+		local selText = Instance.new("TextLabel")
+		selText.Name = "SelectedText"
+		selText.Size = UDim2.new(1, -30, 1, 0)
+		selText.Position = UDim2.new(0, 10, 0, 0)
+		selText.BackgroundTransparency = 1
+		selText.TextColor3 = COLORS.textPrimary
+		selText.TextSize = 12
+		selText.Font = Enum.Font.GothamBold
+		selText.TextXAlignment = Enum.TextXAlignment.Left
+		selText.Parent = mainBtn
+
+		local arrow = Instance.new("TextLabel")
+		arrow.Name = "Arrow"
+		arrow.Size = UDim2.new(0, 20, 1, 0)
+		arrow.Position = UDim2.new(1, -26, 0, 0)
+		arrow.BackgroundTransparency = 1
+		arrow.Text = "▼"
+		arrow.TextColor3 = COLORS.accentCyan
+		arrow.TextSize = 10
+		arrow.Parent = mainBtn
+
+		local function getSummaryText()
+			if selectedMap["All"] then
+				return "All Selected"
+			end
+			local list = {}
+			for opt, isSel in pairs(selectedMap) do
+				if isSel and opt ~= "All" then
+					table.insert(list, opt)
+				end
+			end
+			if #list == 0 then
+				return "None Selected"
+			elseif #list == 1 then
+				return list[1]
+			elseif #list == 2 then
+				return list[1] .. ", " .. list[2]
+			else
+				return string.format("%d Selected", #list)
+			end
+		end
+
+		selText.Text = getSummaryText()
+
+		-- Popup List Frame
+		local listHeight = math.min(#options * 32 + 8, 150)
+		local listFrame = Instance.new("ScrollingFrame")
+		listFrame.Name = "ListFrame"
+		listFrame.Size = UDim2.new(1, 0, 0, listHeight)
+		listFrame.Position = UDim2.new(0, 0, 0, 60)
+		listFrame.BackgroundColor3 = COLORS.glassPrimary
+		listFrame.BackgroundTransparency = 0.05
+		listFrame.BorderSizePixel = 0
+		listFrame.ScrollBarThickness = 2
+		listFrame.ScrollBarImageColor3 = COLORS.accentCyan
+		listFrame.Visible = false
+		listFrame.ZIndex = 50
+		listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+		listFrame.Parent = dropdownContainer
+		applyGlass(listFrame, { corner = CORNER.small, stroke = true, strokeColor = COLORS.accentCyan, strokeTransparency = 0.5 })
+
+		local listLayout = Instance.new("UIListLayout")
+		listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		listLayout.Padding = UDim.new(0, 2)
+		listLayout.Parent = listFrame
+
+		local listPad = Instance.new("UIPadding")
+		listPad.PaddingTop = UDim.new(0, 4)
+		listPad.PaddingBottom = UDim.new(0, 4)
+		listPad.PaddingLeft = UDim.new(0, 4)
+		listPad.PaddingRight = UDim.new(0, 4)
+		listPad.Parent = listFrame
+
+		local function toggleOpen(open)
+			if open == nil then isOpen = not isOpen else isOpen = open end
+			listHeight = math.min(#options * 32 + 8, 150)
+			listFrame.Size = UDim2.new(1, 0, 0, listHeight)
+			if isOpen then
+				listFrame.Visible = true
+				arrow.Text = "▲"
+				tween(dropdownContainer, { Size = UDim2.new(1, 0, 0, 60 + listHeight + 6) }, 0.2)
+			else
+				arrow.Text = "▼"
+				tween(dropdownContainer, { Size = UDim2.new(1, 0, 0, 60) }, 0.2).Completed:Connect(function()
+					if not isOpen then listFrame.Visible = false end
+				end)
+			end
+		end
+
+		local function getSelectedList()
+			local out = {}
+			for opt, isSel in pairs(selectedMap) do
+				if isSel then table.insert(out, opt) end
+			end
+			return out
+		end
+
+		local function populate()
+			for _, child in ipairs(listFrame:GetChildren()) do
+				if child:IsA("TextButton") then child:Destroy() end
+			end
+			for i, opt in ipairs(options) do
+				local isSel = selectedMap[opt] == true
+				local optBtn = Instance.new("TextButton")
+				optBtn.Name = "Opt_" .. opt
+				optBtn.Size = UDim2.new(1, 0, 0, 28)
+				optBtn.BackgroundColor3 = isSel and COLORS.glassActive or COLORS.glassSurface
+				optBtn.BackgroundTransparency = 0.4
+				optBtn.Text = ""
+				optBtn.ZIndex = 51
+				optBtn.LayoutOrder = i
+				optBtn.Parent = listFrame
+				applyGlass(optBtn, { corner = CORNER.small, stroke = isSel, strokeColor = COLORS.accentCyan, strokeTransparency = 0.5 })
+
+				-- Checkbox box
+				local checkbox = Instance.new("Frame")
+				checkbox.Name = "Checkbox"
+				checkbox.Size = UDim2.new(0, 16, 0, 16)
+				checkbox.Position = UDim2.new(0, 8, 0.5, -8)
+				checkbox.BackgroundColor3 = isSel and COLORS.accentCyan or COLORS.toggleOff
+				checkbox.BorderSizePixel = 0
+				checkbox.Parent = optBtn
+				applyGlass(checkbox, { corner = CORNER.small })
+
+				local checkMark = Instance.new("TextLabel")
+				checkMark.Name = "Check"
+				checkMark.Size = UDim2.new(1, 0, 1, 0)
+				checkMark.BackgroundTransparency = 1
+				checkMark.Text = isSel and "✓" or ""
+				checkMark.TextColor3 = Color3.fromRGB(10, 18, 30)
+				checkMark.TextSize = 12
+				checkMark.Font = Enum.Font.GothamBold
+				checkMark.Parent = checkbox
+
+				local optLabel = Instance.new("TextLabel")
+				optLabel.Name = "OptLabel"
+				optLabel.Size = UDim2.new(1, -36, 1, 0)
+				optLabel.Position = UDim2.new(0, 32, 0, 0)
+				optLabel.BackgroundTransparency = 1
+				optLabel.Text = opt
+				optLabel.TextColor3 = isSel and COLORS.accentCyan or COLORS.textPrimary
+				optLabel.TextSize = 11
+				optLabel.Font = Enum.Font.GothamMedium
+				optLabel.TextXAlignment = Enum.TextXAlignment.Left
+				optLabel.Parent = optBtn
+
+				optBtn.MouseButton1Click:Connect(function()
+					if opt == "All" then
+						if selectedMap["All"] then
+							selectedMap = {}
+						else
+							selectedMap = { ["All"] = true }
+						end
+					else
+						selectedMap["All"] = nil
+						selectedMap[opt] = not selectedMap[opt]
+						local any = false
+						for _, v in pairs(selectedMap) do
+							if v then any = true break end
+						end
+						if not any then selectedMap["All"] = true end
+					end
+
+					selText.Text = getSummaryText()
+					populate()
+					if callback then
+						task.spawn(callback, selectedMap, getSelectedList())
+					end
+				end)
+			end
+		end
+
+		mainBtn.MouseButton1Click:Connect(function()
+			toggleOpen()
+		end)
+
+		populate()
+
+		return {
+			Frame = dropdownContainer,
+			Set = function(newMap)
+				selectedMap = {}
+				if typeof(newMap) == "table" then
+					for k, v in pairs(newMap) do
+						if typeof(k) == "string" and v == true then
+							selectedMap[k] = true
+						elseif typeof(v) == "string" then
+							selectedMap[v] = true
+						end
+					end
+				end
+				if next(selectedMap) == nil then selectedMap["All"] = true end
+				selText.Text = getSummaryText()
+				populate()
+			end,
+			Get = function() return selectedMap end,
+			GetList = getSelectedList,
+			Refresh = function(newOptions)
+				options = newOptions
+				listHeight = math.min(#options * 32 + 8, 150)
+				listFrame.Size = UDim2.new(1, 0, 0, listHeight)
+				populate()
+			end
+		}
+	end
+
 	local function addStatCard(parent, title, initialVal, layoutOrder)
 		local card = Instance.new("Frame")
 		card.Name = "Stat_" .. title
@@ -886,7 +1143,7 @@ local success, err = pcall(function()
 		valLbl.Position = UDim2.new(0.5, 0, 0, 0)
 		valLbl.BackgroundTransparency = 1
 		valLbl.Text = tostring(initialVal or "-")
-		valLbl.TextColor3 = COLORS.accentEmerald
+		valLbl.TextColor3 = COLORS.accentCyan
 		valLbl.TextSize = 12
 		valLbl.Font = Enum.Font.GothamBold
 		valLbl.TextXAlignment = Enum.TextXAlignment.Right
@@ -901,7 +1158,7 @@ local success, err = pcall(function()
 	end
 
 	------------------------------------------------
-	-- 🚀 BUILD CORE TABS
+	-- 🚀 BUILD CORE TABS (WITHOUT EMOJIS)
 	------------------------------------------------
 	createTab("Training", nil, 1)
 	createTab("Farming", nil, 2)
@@ -937,6 +1194,7 @@ local success, err = pcall(function()
 		AddButton = addButton,
 		AddSlider = addSlider,
 		AddDropdown = addDropdown,
+		AddMultiDropdown = addMultiDropdown,
 		AddStatCard = addStatCard,
 		SelectTab = selectTab,
 		Tween = tween
