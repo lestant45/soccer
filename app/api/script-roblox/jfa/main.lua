@@ -115,6 +115,21 @@ local success, err = pcall(function()
 		syncShadow()
 	end)
 
+	local fullscreenButton = UI.fullscreenButton
+	if fullscreenButton then
+		local isFs = false
+		fullscreenButton.MouseButton1Click:Connect(function()
+			isFs = not isFs
+			if isFs then
+				UI.Tween(mainFrame, { Size = UDim2.new(0.9, 0, 0.85, 0), Position = UDim2.new(0.05, 0, 0.075, 0) }, 0.25)
+			else
+				UI.Tween(mainFrame, { Size = UDim2.new(0, 600, 0, 410), Position = UDim2.new(0.5, -300, 0.5, -205) }, 0.25)
+			end
+			if UI.UpdateFullscreenIcon then UI.UpdateFullscreenIcon(isFs) end
+			task.delay(0.26, syncShadow)
+		end)
+	end
+
 	-- Toggle Menu via Keybind
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
@@ -127,7 +142,7 @@ local success, err = pcall(function()
 	end)
 
 	------------------------------------------------
-	-- 🏋️‍♂️ 1. TRAINING TAB
+	-- 1. TRAINING TAB
 	------------------------------------------------
 	local trainFrame = UI.tabs["Training"].Frame
 
@@ -185,6 +200,8 @@ local success, err = pcall(function()
 
 	local stageList = { "All", "Meadow", "Coral Reef", "Winter", "Desert", "Crystal Mines", "Jungle", "Mystic Isles", "Prehistoric", "Celestial Heights" }
 
+	local rarityList = { "All", "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Divine", "Celestial", "Eternal", "Ascended", "Exclusive" }
+
 	local animalList = { "All", "ARCHAEOPTERYX", "Ankylosaurus", "Archerfish", "Barracuda", "Bat", "Bear", "Boxfish", "Brachiosaurus", "Bunny", "Butterflyfish", "CLASSIC DRAGON", "Capybara", "Cat", "Chicken", "Coral Goby", "Cowfish", "Crab", "Crocodile", "Elephant", "FIRE PHOENIX", "Frog", "GARUDA", "Gallimimus", "Giraffe", "Goat", "Golden Retriver", "Goldfish", "Gorilla", "Guienna Pig", "Hamster", "Horse", "Jellyfish", "Kangaroo", "Koala", "Lion", "Lionfish", "Lizard", "Llama", "MICRORAPTOR", "Mammoth", "Moorish Idol", "Ostrich", "Owl", "PEGASUS", "PLESIOSAUR", "Parrot", "Pigeon", "Polar Bear", "Pony", "Prehistoric Dragonfly", "Prehistoric Moth", "Pufferfish", "Regal Angelfish", "SIMURGH", "STYMPHALIANBIRD", "Sailfish", "Seahorse", "Seal", "Snail", "Spinosaurus", "Stingray", "Swordfish", "T-Rex", "Triceratops", "Triple Cobra", "Trumpetfish", "Tuna", "Turtle", "Unicorn", "Velociraptor", "WYVERN", "Whale", "Wobbegong", "Wolf", "Zebra" }
 
 	local eggList = { "All", "ARCHAEOPTERYX Egg", "Ankylosaurus Egg", "Archerfish Egg", "Barracuda Egg", "Bat Egg", "Bear Egg", "Boxfish Egg", "Brachiosaurus Egg", "Bunny Egg", "Butterflyfish Egg", "CLASSIC DRAGON Egg", "Capybara Egg", "Cat Egg", "Chicken Egg", "Coral Goby Egg", "Cowfish Egg", "Crab Egg", "Crocodile Egg", "Elephant Egg", "FIRE PHOENIX Egg", "Frog Egg", "GARUDA Egg", "Gallimimus Egg", "Giraffe Egg", "Goat Egg", "Golden Retriver Egg", "Goldfish Egg", "Gorilla Egg", "Guienna Pig Egg", "Hamster Egg", "Horse Egg", "Jellyfish Egg", "Kangaroo Egg", "Koala Egg", "Lion Egg", "Lionfish Egg", "Lizard Egg", "Llama Egg", "MICRORAPTOR Egg", "Mammoth Egg", "Moorish Idol Egg", "Ostrich Egg", "Owl Egg", "PEGASUS Egg", "PLESIOSAUR Egg", "Parrot Egg", "Pigeon Egg", "Polar Bear Egg", "Pony Egg", "Prehistoric Dragonfly Egg", "Prehistoric Moth Egg", "Pufferfish Egg", "Regal Angelfish Egg", "SIMURGH Egg", "STYMPHALIANBIRD Egg", "Sailfish Egg", "Seahorse Egg", "Seal Egg", "Snail Egg", "Spinosaurus Egg", "Stingray Egg", "Swordfish Egg", "T-Rex Egg", "Triceratops Egg", "Triple Cobra Egg", "Trumpetfish Egg", "Tuna Egg", "Turtle Egg", "Unicorn Egg", "Velociraptor Egg", "WYVERN Egg", "Whale Egg", "Wobbegong Egg", "Wolf Egg", "Zebra Egg" }
@@ -197,23 +214,29 @@ local success, err = pcall(function()
 		saveConfig()
 	end, 1)
 
+	UI.AddMultiDropdown(stealSec, "Target Rarities to Steal", rarityList, Features.State.SelectedRarities or { ["All"] = true }, function(map)
+		Features.State.SelectedRarities = map
+		if Config.Farming then Config.Farming.SelectedRarities = map end
+		saveConfig()
+	end, 2)
+
 	UI.AddMultiDropdown(stealSec, "Target Animals to Steal", animalList, Features.State.SelectedAnimals or { ["All"] = true }, function(map)
 		Features.State.SelectedAnimals = map
 		if Config.Farming then Config.Farming.SelectedAnimals = map end
 		saveConfig()
-	end, 2)
+	end, 3)
 
 	UI.AddToggle(stealSec, "Auto Steal Eggs from Stages", Features.State.AutoStealEggs, function(v)
 		Features.State.AutoStealEggs = v
 		if Config.Farming then Config.Farming.AutoStealEggs = v end
 		saveConfig()
-	end, 3)
+	end, 4)
 
 	UI.AddSlider(stealSec, "Steal Delay (Speed)", 2, 50, math.floor((Features.State.StealDelay or 0.05) * 100), function(val)
 		Features.State.StealDelay = val / 100
 		if Config.Farming then Config.Farming.StealDelay = val / 100 end
 		saveConfig()
-	end, 4, "cs")
+	end, 5, "cs")
 
 	local plotSec = UI.AddSection(farmFrame, "Plot & Pet Management", 2)
 

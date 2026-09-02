@@ -33,6 +33,7 @@ local success, err = pcall(function()
 			AutoStealEggs = false,
 			StealDelay = 0.05,
 			SelectedStages = { ["All"] = true },
+			SelectedRarities = { ["All"] = true },
 			SelectedAnimals = { ["All"] = true },
 			AutoPlaceEggs = false,
 			SelectedPlaceEggs = { ["All"] = true },

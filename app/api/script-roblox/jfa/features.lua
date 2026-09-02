@@ -26,7 +26,9 @@ Features.State = {
 
 	-- Farming
 	AutoStealEggs = false,
+	StealDelay = 0.05,
 	SelectedStages = { ["All"] = true },
+	SelectedRarities = { ["All"] = true },
 	SelectedAnimals = { ["All"] = true },
 	AutoPlaceEggs = false,
 	SelectedPlaceEggs = { ["All"] = true },
@@ -287,6 +289,44 @@ end)
 ------------------------------------------------
 -- 🥚 EGG FARMING (AUTO STEAL, PLACE, HATCH)
 ------------------------------------------------
+local AnimalRarities = {
+	Boxfish = "Rare", Tuna = "Uncommon", ["Prehistoric Moth"] = "Mythic", Gallimimus = "Common",
+	PEGASUS = "Eternal", Capybara = "Uncommon", Ankylosaurus = "Epic", PLESIOSAUR = "Celestial",
+	Ostrich = "Rare", Zebra = "Rare", Spinosaurus = "Mythic", ARCHAEOPTERYX = "Uncommon",
+	["T-Rex"] = "Divine", Crab = "Common", Sailfish = "Rare", MICRORAPTOR = "Common",
+	Trumpetfish = "Rare", ["Moorish Idol"] = "Rare", Gorilla = "Legendary", Triceratops = "Rare",
+	["FIRE PHOENIX"] = "Divine", Wolf = "Legendary", Chicken = "Common", WYVERN = "Celestial",
+	Goat = "Common", Velociraptor = "Uncommon", Pufferfish = "Epic", Swordfish = "Epic",
+	Snail = "Common", GARUDA = "Legendary", Owl = "Legendary", STYMPHALIANBIRD = "Rare",
+	Parrot = "Rare", Lion = "Mythic", Hamster = "Common", Goldfish = "Common", Bear = "Rare",
+	Kangaroo = "Epic", Turtle = "Common", Cowfish = "Rare", Horse = "Uncommon",
+	["CLASSIC DRAGON"] = "Exclusive", Llama = "Epic", Barracuda = "Rare", Unicorn = "Epic",
+	Lionfish = "Mythic", ["Golden Retriver"] = "Uncommon", Archerfish = "Rare", Bunny = "Common",
+	["Prehistoric Dragonfly"] = "Common", Butterflyfish = "Epic", Lizard = "Common", Frog = "Common",
+	Cat = "Uncommon", Bat = "Rare", Crocodile = "Epic", SIMURGH = "Mythic", Elephant = "Mythic",
+	Wobbegong = "Legendary", ["Guienna Pig"] = "Common", Stingray = "Epic", Koala = "Common",
+	["Coral Goby"] = "Common", Pony = "Rare", Brachiosaurus = "Legendary", Seal = "Uncommon",
+	Jellyfish = "Epic", Seahorse = "Uncommon", Pigeon = "Common", ["Regal Angelfish"] = "Legendary",
+	Giraffe = "Epic", Whale = "Mythic", ["Polar Bear"] = "Legendary", ["Triple Cobra"] = "Exclusive",
+	Mammoth = "Mythic"
+}
+
+function Features.GetAnimalRarity(animalName)
+	if AnimalRarities[animalName] then return AnimalRarities[animalName] end
+	pcall(function()
+		local rs = game:GetService("ReplicatedStorage")
+		local animalsMod = rs:FindFirstChild("Settings") and rs.Settings:FindFirstChild("Animals")
+		if animalsMod then
+			local d = require(animalsMod)
+			local list = d.List or d
+			if list[animalName] and list[animalName].Rarity then
+				AnimalRarities[animalName] = list[animalName].Rarity
+			end
+		end
+	end)
+	return AnimalRarities[animalName] or "Common"
+end
+
 function Features.GetAllSpawnedEggs()
 	local eggs = {}
 	local map = Workspace:FindFirstChild("Map")
@@ -294,6 +334,7 @@ function Features.GetAllSpawnedEggs()
 	if not stages then return eggs end
 
 	local selStages = Features.State.SelectedStages or { ["All"] = true }
+	local selRarities = Features.State.SelectedRarities or { ["All"] = true }
 	local selAnimals = Features.State.SelectedAnimals or { ["All"] = true }
 
 	for _, stage in ipairs(stages:GetChildren()) do
@@ -303,13 +344,15 @@ function Features.GetAllSpawnedEggs()
 			if spawnedEggs then
 				for _, eggModel in ipairs(spawnedEggs:GetChildren()) do
 					local eggName = eggModel.Name
-					if selAnimals["All"] or selAnimals[eggName] then
+					local rarity = Features.GetAnimalRarity(eggName)
+					if (selRarities["All"] or selRarities[rarity]) and (selAnimals["All"] or selAnimals[eggName]) then
 						local prompt = eggModel:FindFirstChildWhichIsA("ProximityPrompt", true)
 						local rootPart = eggModel:FindFirstChild("EggRoot") or eggModel:FindFirstChildWhichIsA("BasePart") or eggModel.PrimaryPart
 						if prompt and prompt.Enabled and rootPart then
 							table.insert(eggs, {
 								Model = eggModel,
 								Name = eggName,
+								Rarity = rarity,
 								Stage = stageName,
 								Prompt = prompt,
 								Part = rootPart,

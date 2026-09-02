@@ -1,6 +1,7 @@
 -- ==============================================================================
--- 🐾 HipHub UI — Jump for Animals! (Ultra-Glassmorphic Component Library)
--- Theme: HipHub Default Cyber Cyan / Sapphire Blue Liquid Glass
+-- 🐾 HipHub UI Base Controller — Jump for Animals!
+-- Theme: Liquid Glass Futuristic Glassmorphism (Cyan & Violet Accents)
+-- Architecture matched exactly to HipHub standard baseui.lua
 -- ==============================================================================
 
 if not game:IsLoaded() then
@@ -17,45 +18,48 @@ end
 local success, err = pcall(function()
 	local TweenService = game:GetService("TweenService")
 	local UserInputService = game:GetService("UserInputService")
-	local RunService = game:GetService("RunService")
+	local GuiService = game:GetService("GuiService")
 
 	player:WaitForChild("PlayerGui")
 
 	------------------------------------------------
-	-- 🎨 DESIGN TOKENS (HIPHUB DEFAULT CYAN / BLUE THEME)
+	-- 🎨 DESIGN TOKENS (Liquid Glass Palette)
 	------------------------------------------------
 	local COLORS = {
-		glassPrimary   = Color3.fromRGB(8, 14, 26),
-		glassSurface   = Color3.fromRGB(12, 20, 36),
-		glassCard      = Color3.fromRGB(16, 26, 46),
-		glassHover     = Color3.fromRGB(24, 38, 66),
-		glassActive    = Color3.fromRGB(30, 48, 82),
-		accentCyan     = Color3.fromRGB(0, 200, 255),  -- HipHub Radiant Cyan
-		accentBlue     = Color3.fromRGB(0, 150, 255),  -- Sapphire Blue
-		accentGold     = Color3.fromRGB(245, 158, 11), -- Golden Mutation
-		accentViolet   = Color3.fromRGB(139, 92, 246), -- Rare / Mythic
-		accentGlow     = Color3.fromRGB(0, 200, 255),
-		accentMuted    = Color3.fromRGB(25, 45, 75),
-		toggleOn       = Color3.fromRGB(0, 170, 255),
-		toggleOff      = Color3.fromRGB(28, 38, 56),
-		textPrimary    = Color3.fromRGB(235, 245, 255),
-		textSecondary  = Color3.fromRGB(145, 175, 210),
-		textMuted      = Color3.fromRGB(90, 120, 150),
-		textWhite      = Color3.fromRGB(255, 255, 255),
-		borderGlass    = Color3.fromRGB(35, 60, 95),
-		borderGlow     = Color3.fromRGB(0, 200, 255),
-		shadow         = Color3.fromRGB(2, 4, 8),
-		successGreen   = Color3.fromRGB(34, 197, 94),
-		warningYellow  = Color3.fromRGB(234, 179, 8),
-		dangerRed      = Color3.fromRGB(239, 68, 68)
+		-- Glass surfaces
+		glassPrimary  = Color3.fromRGB(10, 12, 24),
+		glassSurface  = Color3.fromRGB(16, 20, 36),
+		glassCard     = Color3.fromRGB(20, 24, 44),
+		glassHover    = Color3.fromRGB(28, 34, 58),
+		glassActive   = Color3.fromRGB(34, 40, 68),
+		-- Accent
+		accentCyan    = Color3.fromRGB(0, 200, 255),
+		accentViolet  = Color3.fromRGB(140, 120, 255),
+		accentBlend   = Color3.fromRGB(80, 160, 255),
+		accentGlow    = Color3.fromRGB(60, 180, 255),
+		accentMuted   = Color3.fromRGB(50, 60, 100),
+		-- Toggle
+		toggleOn      = Color3.fromRGB(0, 180, 230),
+		toggleOff     = Color3.fromRGB(40, 46, 70),
+		-- Text
+		textPrimary   = Color3.fromRGB(225, 235, 255),
+		textSecondary = Color3.fromRGB(140, 155, 185),
+		textMuted     = Color3.fromRGB(90, 105, 135),
+		textWhite     = Color3.fromRGB(255, 255, 255),
+		-- Borders
+		borderGlass   = Color3.fromRGB(50, 65, 110),
+		borderGlow    = Color3.fromRGB(0, 180, 255),
+		dangerRed     = Color3.fromRGB(255, 80, 80),
+		-- Shadow
+		shadow        = Color3.fromRGB(2, 3, 8),
 	}
 
 	local TRANSPARENCY = {
-		glassMain    = 0.04,
-		glassSurface = 0.08,
-		glassCard    = 0.12,
-		glassSidebar = 0.06,
-		glassTopBar  = 0.04,
+		glassMain    = 0.02,
+		glassSurface = 0.05,
+		glassCard    = 0.08,
+		glassSidebar = 0.04,
+		glassTopBar  = 0.03,
 		border       = 0.55,
 		borderGlow   = 0.35,
 	}
@@ -68,15 +72,20 @@ local success, err = pcall(function()
 	}
 
 	------------------------------------------------
-	-- 🧹 CLEANUP EXISTING INSTANCES
+	-- 🧹 REMOVE OLD GUI & BLUR
 	------------------------------------------------
-	local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("HipHub_JFA_UI") or player.PlayerGui:FindFirstChild("HipHub_UI")
+	local oldGui = player:WaitForChild("PlayerGui"):FindFirstChild("HipHub_JFA_UI") or player.PlayerGui:FindFirstChild("HipHub")
 	if oldGui then
 		oldGui:Destroy()
 	end
+	local Lighting = game:GetService("Lighting")
+	local oldBlur = Lighting:FindFirstChild("HipHubBlur")
+	if oldBlur then
+		oldBlur:Destroy()
+	end
 
 	------------------------------------------------
-	-- 🛠️ HELPER FUNCTIONS
+	-- 🛠️ HELPERS
 	------------------------------------------------
 	local function applyGlass(frame, opts)
 		opts = opts or {}
@@ -98,1016 +107,1301 @@ local success, err = pcall(function()
 			local grad = Instance.new("UIGradient")
 			grad.Color = ColorSequence.new({
 				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-				ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 220, 255)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 190, 220)),
 			})
-			grad.Rotation = opts.gradientRotation or 45
 			grad.Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0),
-				NumberSequenceKeypoint.new(1, 0.25),
+				NumberSequenceKeypoint.new(0, 0.05),
+				NumberSequenceKeypoint.new(0.5, 0.12),
+				NumberSequenceKeypoint.new(1, 0.03),
 			})
+			grad.Rotation = opts.gradientRotation or 135
 			grad.Parent = frame
 		end
 	end
 
-	local function tween(instance, properties, duration, style, direction)
-		style = style or Enum.EasingStyle.Quad
-		direction = direction or Enum.EasingDirection.Out
-		duration = duration or 0.25
-		local t = TweenService:Create(instance, TweenInfo.new(duration, style, direction), properties)
+	local function applyPadding(parent, l, r, t, b)
+		local p = Instance.new("UIPadding")
+		p.PaddingLeft = UDim.new(0, l or 0)
+		p.PaddingRight = UDim.new(0, r or 0)
+		p.PaddingTop = UDim.new(0, t or 0)
+		p.PaddingBottom = UDim.new(0, b or 0)
+		p.Parent = parent
+	end
+
+	local function applyListLayout(parent, padding, sortOrder)
+		local layout = Instance.new("UIListLayout")
+		layout.SortOrder = sortOrder or Enum.SortOrder.LayoutOrder
+		layout.Padding = UDim.new(0, padding or 4)
+		layout.Parent = parent
+		return layout
+	end
+
+	local function tween(inst, props, duration, style, dir)
+		local tInfo = TweenInfo.new(duration or 0.2, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out)
+		local t = TweenService:Create(inst, tInfo, props)
 		t:Play()
 		return t
 	end
 
-	local function addHoverAnimation(btn, normalColor, hoverColor, targetProp)
-		targetProp = targetProp or "BackgroundColor3"
-		btn.MouseEnter:Connect(function()
-			tween(btn, { [targetProp] = hoverColor }, 0.2)
-		end)
-		btn.MouseLeave:Connect(function()
-			tween(btn, { [targetProp] = normalColor }, 0.2)
-		end)
-	end
+	------------------------------------------------
+	-- 🖥️ SCREEN GUI
+	------------------------------------------------
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "HipHub_JFA_UI"
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 2147483647
+	pcall(function() gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling end)
+	gui.Parent = player:WaitForChild("PlayerGui")
 
 	------------------------------------------------
-	-- 📱 SCREEN GUI & MAIN CONTAINERS
+	-- 🌑 SHADOW BACKING
 	------------------------------------------------
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "HipHub_JFA_UI"
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = player.PlayerGui
-
-	-- Outer drop shadow container
 	local shadowFrame = Instance.new("Frame")
-	shadowFrame.Name = "ShadowContainer"
-	shadowFrame.Size = UDim2.new(0, 720, 0, 480)
-	shadowFrame.Position = UDim2.new(0.5, -360, 0.5, -240)
-	shadowFrame.BackgroundTransparency = 1
-	shadowFrame.Parent = screenGui
+	shadowFrame.Size = UDim2.new(0, 612, 0, 422)
+	shadowFrame.Position = UDim2.new(0.5, -306, 0.5, -211)
+	shadowFrame.BackgroundColor3 = COLORS.shadow
+	shadowFrame.BackgroundTransparency = 0.45
+	shadowFrame.BorderSizePixel = 0
+	shadowFrame.ZIndex = 0
+	shadowFrame.Parent = gui
 
-	local shadowImg = Instance.new("ImageLabel")
-	shadowImg.Name = "DropShadow"
-	shadowImg.AnchorPoint = Vector2.new(0.5, 0.5)
-	shadowImg.Position = UDim2.new(0.5, 0, 0.5, 6)
-	shadowImg.Size = UDim2.new(1, 48, 1, 48)
-	shadowImg.BackgroundTransparency = 1
-	shadowImg.Image = "rbxassetid://6015897843"
-	shadowImg.ImageColor3 = COLORS.shadow
-	shadowImg.ImageTransparency = 0.2
-	shadowImg.ScaleType = Enum.ScaleType.Slice
-	shadowImg.SliceCenter = Rect.new(49, 49, 450, 450)
-	shadowImg.Parent = shadowFrame
+	local shadowCorner = Instance.new("UICorner")
+	shadowCorner.CornerRadius = UDim.new(0, 18)
+	shadowCorner.Parent = shadowFrame
 
-	-- Main Liquid Glass Frame
+	------------------------------------------------
+	-- 🖼️ MAIN FRAME (Glass Panel)
+	------------------------------------------------
 	local mainFrame = Instance.new("Frame")
 	mainFrame.Name = "MainFrame"
-	mainFrame.Size = UDim2.new(0, 720, 0, 480)
-	mainFrame.Position = UDim2.new(0.5, -360, 0.5, -240)
+	mainFrame.Size = UDim2.new(0, 600, 0, 410)
+	mainFrame.Position = UDim2.new(0.5, -300, 0.5, -205)
 	mainFrame.BackgroundColor3 = COLORS.glassPrimary
 	mainFrame.BackgroundTransparency = TRANSPARENCY.glassMain
 	mainFrame.BorderSizePixel = 0
 	mainFrame.ClipsDescendants = true
-	mainFrame.Parent = screenGui
+	mainFrame.Parent = gui
 
-	applyGlass(mainFrame, { corner = CORNER.large, stroke = true, strokeColor = COLORS.borderGlass, gradient = true })
-
-	local mainGlowStroke = Instance.new("UIStroke")
-	mainGlowStroke.Name = "GlowStroke"
-	mainGlowStroke.Color = COLORS.borderGlow
-	mainGlowStroke.Thickness = 1.2
-	mainGlowStroke.Transparency = TRANSPARENCY.borderGlow
-	mainGlowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	mainGlowStroke.Parent = mainFrame
+	applyGlass(mainFrame, {
+		corner = CORNER.large,
+		stroke = true,
+		strokeColor = COLORS.borderGlow,
+		strokeThickness = 1.5,
+		strokeTransparency = TRANSPARENCY.borderGlow,
+		gradient = true,
+		gradientRotation = 145,
+	})
 
 	local function syncShadow()
-		shadowFrame.Position = mainFrame.Position
-		shadowFrame.Size = mainFrame.Size
+		shadowFrame.Position = UDim2.new(
+			mainFrame.Position.X.Scale, mainFrame.Position.X.Offset - 6,
+			mainFrame.Position.Y.Scale, mainFrame.Position.Y.Offset - 6
+		)
+		shadowFrame.Size = UDim2.new(
+			mainFrame.Size.X.Scale, mainFrame.Size.X.Offset + 12,
+			mainFrame.Size.Y.Scale, mainFrame.Size.Y.Offset + 12
+		)
 		shadowFrame.Visible = mainFrame.Visible
 	end
+	syncShadow()
+
+	-- Animated pulsing glow border
+	local mainStroke = mainFrame:FindFirstChildOfClass("UIStroke")
+	if mainStroke then
+		task.spawn(function()
+			while mainFrame and mainFrame.Parent do
+				TweenService:Create(mainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+					Color = COLORS.accentViolet
+				}):Play()
+				task.wait(2.5)
+				if not mainFrame or not mainFrame.Parent then break end
+				TweenService:Create(mainStroke, TweenInfo.new(2.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+					Color = COLORS.accentCyan
+				}):Play()
+				task.wait(2.5)
+			end
+		end)
+	end
+
+	local glassHighlight = Instance.new("Frame")
+	glassHighlight.Size = UDim2.new(1, 0, 0, 60)
+	glassHighlight.Position = UDim2.new(0, 0, 0, 0)
+	glassHighlight.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	glassHighlight.BackgroundTransparency = 0.96
+	glassHighlight.BorderSizePixel = 0
+	glassHighlight.ZIndex = 0
+	glassHighlight.Parent = mainFrame
+
+	local highlightGrad = Instance.new("UIGradient")
+	highlightGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.90),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	highlightGrad.Rotation = 180
+	highlightGrad.Parent = glassHighlight
 
 	------------------------------------------------
-	-- 🔝 TOP BAR
+	-- 📌 TOP BAR
 	------------------------------------------------
 	local topBar = Instance.new("Frame")
 	topBar.Name = "TopBar"
-	topBar.Size = UDim2.new(1, 0, 0, 48)
+	topBar.Size = UDim2.new(1, 0, 0, 42)
 	topBar.BackgroundColor3 = COLORS.glassSurface
 	topBar.BackgroundTransparency = TRANSPARENCY.glassTopBar
 	topBar.BorderSizePixel = 0
+	topBar.ZIndex = 2
 	topBar.Parent = mainFrame
 
-	local topBarBottomBorder = Instance.new("Frame")
-	topBarBottomBorder.Name = "BottomBorder"
-	topBarBottomBorder.Size = UDim2.new(1, 0, 0, 1)
-	topBarBottomBorder.Position = UDim2.new(0, 0, 1, -1)
-	topBarBottomBorder.BackgroundColor3 = COLORS.borderGlass
-	topBarBottomBorder.BackgroundTransparency = 0.4
-	topBarBottomBorder.BorderSizePixel = 0
-	topBarBottomBorder.Parent = topBar
+	applyGlass(topBar, { corner = CORNER.large })
 
-	-- Title & Brand Header
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Name = "TitleLabel"
-	titleLabel.Size = UDim2.new(0, 240, 0, 24)
-	titleLabel.Position = UDim2.new(0, 16, 0.5, -12)
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.Text = "HIPHUB <font color='#00C8FF'><b>JUMP FOR ANIMALS</b></font>"
-	titleLabel.RichText = true
-	titleLabel.TextColor3 = COLORS.textPrimary
-	titleLabel.TextSize = 15
-	titleLabel.Font = Enum.Font.GothamBold
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = topBar
+	local topBarCover = Instance.new("Frame")
+	topBarCover.Size = UDim2.new(1, 0, 0, 14)
+	topBarCover.Position = UDim2.new(0, 0, 1, -14)
+	topBarCover.BackgroundColor3 = COLORS.glassSurface
+	topBarCover.BackgroundTransparency = TRANSPARENCY.glassTopBar
+	topBarCover.BorderSizePixel = 0
+	topBarCover.ZIndex = 2
+	topBarCover.Parent = topBar
 
-	local versionTag = Instance.new("TextLabel")
-	versionTag.Name = "VersionTag"
-	versionTag.Size = UDim2.new(0, 56, 0, 18)
-	versionTag.Position = UDim2.new(0, 235, 0.5, -9)
-	versionTag.BackgroundColor3 = COLORS.glassCard
-	versionTag.BackgroundTransparency = 0.2
-	versionTag.Text = "v1.0.0"
-	versionTag.TextColor3 = COLORS.accentCyan
-	versionTag.TextSize = 10
-	versionTag.Font = Enum.Font.GothamBold
-	versionTag.Parent = topBar
-	applyGlass(versionTag, { corner = CORNER.small, stroke = true, strokeColor = COLORS.accentCyan, strokeTransparency = 0.6 })
+	local topBarAccent = Instance.new("Frame")
+	topBarAccent.Size = UDim2.new(1, 0, 0, 1)
+	topBarAccent.Position = UDim2.new(0, 0, 1, -1)
+	topBarAccent.BackgroundColor3 = COLORS.accentCyan
+	topBarAccent.BackgroundTransparency = 0.7
+	topBarAccent.BorderSizePixel = 0
+	topBarAccent.ZIndex = 3
+	topBarAccent.Parent = topBar
 
-	-- Status Badge
-	local statusBadge = Instance.new("Frame")
-	statusBadge.Name = "StatusBadge"
-	statusBadge.Size = UDim2.new(0, 105, 0, 24)
-	statusBadge.Position = UDim2.new(1, -215, 0.5, -12)
-	statusBadge.BackgroundColor3 = COLORS.glassCard
-	statusBadge.BackgroundTransparency = 0.3
-	statusBadge.Parent = topBar
-	applyGlass(statusBadge, { corner = CORNER.pill, stroke = true, strokeColor = COLORS.borderGlass })
+	local accentGrad = Instance.new("UIGradient")
+	accentGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, COLORS.accentCyan),
+		ColorSequenceKeypoint.new(0.5, COLORS.accentViolet),
+		ColorSequenceKeypoint.new(1, COLORS.accentCyan),
+	})
+	accentGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.8),
+		NumberSequenceKeypoint.new(0.3, 0.2),
+		NumberSequenceKeypoint.new(0.7, 0.2),
+		NumberSequenceKeypoint.new(1, 0.8),
+	})
+	accentGrad.Parent = topBarAccent
 
-	local statusDot = Instance.new("Frame")
-	statusDot.Name = "Dot"
-	statusDot.Size = UDim2.new(0, 8, 0, 8)
-	statusDot.Position = UDim2.new(0, 9, 0.5, -4)
-	statusDot.BackgroundColor3 = COLORS.accentCyan
-	statusDot.BorderSizePixel = 0
-	statusDot.Parent = statusBadge
-	applyGlass(statusDot, { corner = CORNER.pill })
+	local hubTitle = Instance.new("TextLabel")
+	hubTitle.Name = "HubTitle"
+	hubTitle.Size = UDim2.new(0, 75, 1, 0)
+	hubTitle.Position = UDim2.new(0, 14, 0, 0)
+	hubTitle.BackgroundTransparency = 1
+	hubTitle.Text = "HipHub"
+	hubTitle.TextColor3 = COLORS.textWhite
+	hubTitle.Font = Enum.Font.GothamBold
+	hubTitle.TextSize = 16
+	hubTitle.TextXAlignment = Enum.TextXAlignment.Left
+	hubTitle.ZIndex = 3
+	hubTitle.Parent = topBar
 
-	local statusText = Instance.new("TextLabel")
-	statusText.Name = "Text"
-	statusText.Size = UDim2.new(1, -24, 1, 0)
-	statusText.Position = UDim2.new(0, 22, 0, 0)
-	statusText.BackgroundTransparency = 1
-	statusText.Text = "ACTIVE"
-	statusText.TextColor3 = COLORS.textSecondary
-	statusText.TextSize = 11
-	statusText.Font = Enum.Font.GothamBold
-	statusText.TextXAlignment = Enum.TextXAlignment.Left
-	statusText.Parent = statusBadge
+	local badge = Instance.new("TextLabel")
+	badge.Name = "GameBadge"
+	badge.Size = UDim2.new(0, 125, 0, 22)
+	badge.Position = UDim2.new(0, 92, 0.5, -11)
+	badge.BackgroundColor3 = COLORS.accentViolet
+	badge.BackgroundTransparency = 0.25
+	badge.Text = "Jump for Animals"
+	badge.TextColor3 = COLORS.textWhite
+	badge.Font = Enum.Font.GothamBold
+	badge.TextSize = 10
+	badge.ZIndex = 3
+	badge.Parent = topBar
 
-	-- Window Control Buttons
-	local minimizeButton = Instance.new("TextButton")
-	minimizeButton.Name = "MinimizeButton"
-	minimizeButton.Size = UDim2.new(0, 30, 0, 30)
-	minimizeButton.Position = UDim2.new(1, -74, 0.5, -15)
-	minimizeButton.BackgroundColor3 = COLORS.glassCard
-	minimizeButton.BackgroundTransparency = 0.4
-	minimizeButton.Text = "—"
-	minimizeButton.TextColor3 = COLORS.textSecondary
-	minimizeButton.TextSize = 13
-	minimizeButton.Font = Enum.Font.GothamBold
-	minimizeButton.Parent = topBar
-	applyGlass(minimizeButton, { corner = CORNER.small, stroke = true, strokeColor = COLORS.borderGlass })
-	addHoverAnimation(minimizeButton, COLORS.glassCard, COLORS.glassHover)
+	applyGlass(badge, {
+		corner = CORNER.pill,
+		stroke = true,
+		strokeColor = COLORS.accentViolet,
+		strokeThickness = 1,
+		strokeTransparency = 0.5
+	})
 
 	local closeButton = Instance.new("TextButton")
 	closeButton.Name = "CloseButton"
 	closeButton.Size = UDim2.new(0, 30, 0, 30)
 	closeButton.Position = UDim2.new(1, -38, 0.5, -15)
-	closeButton.BackgroundColor3 = COLORS.glassCard
-	closeButton.BackgroundTransparency = 0.4
-	closeButton.Text = "✕"
-	closeButton.TextColor3 = COLORS.dangerRed
-	closeButton.TextSize = 13
+	closeButton.BackgroundTransparency = 1
+	closeButton.Text = "X"
+	closeButton.TextColor3 = COLORS.textSecondary
 	closeButton.Font = Enum.Font.GothamBold
+	closeButton.TextSize = 14
+	closeButton.ZIndex = 3
 	closeButton.Parent = topBar
-	applyGlass(closeButton, { corner = CORNER.small, stroke = true, strokeColor = COLORS.dangerRed, strokeTransparency = 0.6 })
-	addHoverAnimation(closeButton, COLORS.glassCard, Color3.fromRGB(60, 20, 25))
+
+	pcall(function()
+		closeButton.MouseEnter:Connect(function()
+			TweenService:Create(closeButton, TweenInfo.new(0.15), { TextColor3 = COLORS.dangerRed }):Play()
+		end)
+		closeButton.MouseLeave:Connect(function()
+			TweenService:Create(closeButton, TweenInfo.new(0.15), { TextColor3 = COLORS.textSecondary }):Play()
+		end)
+	end)
+
+	local fullscreenButton = Instance.new("TextButton")
+	fullscreenButton.Name = "FullscreenButton"
+	fullscreenButton.Size = UDim2.new(0, 30, 0, 30)
+	fullscreenButton.Position = UDim2.new(1, -70, 0.5, -15)
+	fullscreenButton.BackgroundTransparency = 1
+	fullscreenButton.Text = ""
+	fullscreenButton.ZIndex = 3
+	fullscreenButton.Parent = topBar
+
+	local fsIcon = Instance.new("Frame")
+	fsIcon.Size = UDim2.new(0, 10, 0, 10)
+	fsIcon.Position = UDim2.new(0.5, -5, 0.5, -5)
+	fsIcon.BackgroundTransparency = 1
+	fsIcon.BorderSizePixel = 0
+	fsIcon.ZIndex = 4
+	fsIcon.Parent = fullscreenButton
+
+	local fsIconStroke = Instance.new("UIStroke")
+	fsIconStroke.Color = COLORS.textSecondary
+	fsIconStroke.Thickness = 1.5
+	fsIconStroke.Parent = fsIcon
+
+	local fsIcon2 = Instance.new("Frame")
+	fsIcon2.Size = UDim2.new(0, 8, 0, 8)
+	fsIcon2.Position = UDim2.new(0.5, -3, 0.5, -7)
+	fsIcon2.BackgroundTransparency = 1
+	fsIcon2.BorderSizePixel = 0
+	fsIcon2.Visible = false
+	fsIcon2.ZIndex = 4
+	fsIcon2.Parent = fullscreenButton
+
+	local fsIcon2Stroke = Instance.new("UIStroke")
+	fsIcon2Stroke.Color = COLORS.textSecondary
+	fsIcon2Stroke.Thickness = 1.5
+	fsIcon2Stroke.Parent = fsIcon2
+
+	local isFullscreenState = false
+	local function updateFullscreenIcon(isFullscreen)
+		isFullscreenState = isFullscreen
+		if isFullscreen then
+			fsIcon.Size = UDim2.new(0, 8, 0, 8)
+			fsIcon.Position = UDim2.new(0.5, -6, 0.5, -2)
+			fsIcon2.Visible = true
+		else
+			fsIcon.Size = UDim2.new(0, 10, 0, 10)
+			fsIcon.Position = UDim2.new(0.5, -5, 0.5, -5)
+			fsIcon2.Visible = false
+		end
+	end
+
+	pcall(function()
+		fullscreenButton.MouseEnter:Connect(function()
+			TweenService:Create(fsIconStroke, TweenInfo.new(0.15), { Color = COLORS.accentCyan }):Play()
+			TweenService:Create(fsIcon2Stroke, TweenInfo.new(0.15), { Color = COLORS.accentCyan }):Play()
+		end)
+		fullscreenButton.MouseLeave:Connect(function()
+			TweenService:Create(fsIconStroke, TweenInfo.new(0.15), { Color = COLORS.textSecondary }):Play()
+			TweenService:Create(fsIcon2Stroke, TweenInfo.new(0.15), { Color = COLORS.textSecondary }):Play()
+		end)
+	end)
+
+	local minimizeButton = Instance.new("TextButton")
+	minimizeButton.Name = "MinimizeButton"
+	minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+	minimizeButton.Position = UDim2.new(1, -102, 0.5, -15)
+	minimizeButton.BackgroundTransparency = 1
+	minimizeButton.Text = "-"
+	minimizeButton.TextColor3 = COLORS.textSecondary
+	minimizeButton.Font = Enum.Font.GothamBold
+	minimizeButton.TextSize = 16
+	minimizeButton.ZIndex = 3
+	minimizeButton.Parent = topBar
+
+	pcall(function()
+		minimizeButton.MouseEnter:Connect(function()
+			TweenService:Create(minimizeButton, TweenInfo.new(0.15), { TextColor3 = COLORS.accentCyan }):Play()
+		end)
+		minimizeButton.MouseLeave:Connect(function()
+			TweenService:Create(minimizeButton, TweenInfo.new(0.15), { TextColor3 = COLORS.textSecondary }):Play()
+		end)
+	end)
 
 	------------------------------------------------
-	-- 📑 SIDEBAR (NAVIGATION & USER PROFILE)
+	-- 📂 SIDEBAR (Glass Panel)
 	------------------------------------------------
 	local sidebar = Instance.new("Frame")
 	sidebar.Name = "Sidebar"
-	sidebar.Size = UDim2.new(0, 175, 1, -48)
-	sidebar.Position = UDim2.new(0, 0, 0, 48)
+	sidebar.Size = UDim2.new(0, 150, 1, -42)
+	sidebar.Position = UDim2.new(0, 0, 0, 42)
 	sidebar.BackgroundColor3 = COLORS.glassSurface
 	sidebar.BackgroundTransparency = TRANSPARENCY.glassSidebar
 	sidebar.BorderSizePixel = 0
+	sidebar.ZIndex = 1
 	sidebar.Parent = mainFrame
 
-	local sidebarRightBorder = Instance.new("Frame")
-	sidebarRightBorder.Name = "RightBorder"
-	sidebarRightBorder.Size = UDim2.new(0, 1, 1, 0)
-	sidebarRightBorder.Position = UDim2.new(1, -1, 0, 0)
-	sidebarRightBorder.BackgroundColor3 = COLORS.borderGlass
-	sidebarRightBorder.BackgroundTransparency = 0.4
-	sidebarRightBorder.BorderSizePixel = 0
-	sidebarRightBorder.Parent = sidebar
+	applyGlass(sidebar, { corner = CORNER.large })
 
-	local navList = Instance.new("ScrollingFrame")
-	navList.Name = "NavList"
-	navList.Size = UDim2.new(1, -12, 1, -76)
-	navList.Position = UDim2.new(0, 6, 0, 8)
-	navList.BackgroundTransparency = 1
-	navList.BorderSizePixel = 0
-	navList.ScrollBarThickness = 2
-	navList.ScrollBarImageColor3 = COLORS.accentCyan
-	navList.CanvasSize = UDim2.new(0, 0, 0, 0)
-	navList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	navList.Parent = sidebar
+	local sidebarCover = Instance.new("Frame")
+	sidebarCover.Size = UDim2.new(0, 14, 1, 0)
+	sidebarCover.Position = UDim2.new(1, -14, 0, 0)
+	sidebarCover.BackgroundColor3 = COLORS.glassSurface
+	sidebarCover.BackgroundTransparency = TRANSPARENCY.glassSidebar
+	sidebarCover.BorderSizePixel = 0
+	sidebarCover.ZIndex = 1
+	sidebarCover.Parent = sidebar
 
-	local navLayout = Instance.new("UIListLayout")
-	navLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	navLayout.Padding = UDim.new(0, 5)
-	navLayout.Parent = navList
+	local sidebarGlow = Instance.new("Frame")
+	sidebarGlow.Size = UDim2.new(0, 1, 1, -20)
+	sidebarGlow.Position = UDim2.new(1, -1, 0, 10)
+	sidebarGlow.BackgroundColor3 = COLORS.accentCyan
+	sidebarGlow.BackgroundTransparency = 0.78
+	sidebarGlow.BorderSizePixel = 0
+	sidebarGlow.ZIndex = 2
+	sidebarGlow.Parent = sidebar
+
+	local sidebarGlowGrad = Instance.new("UIGradient")
+	sidebarGlowGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.2, 0.5),
+		NumberSequenceKeypoint.new(0.8, 0.5),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	sidebarGlowGrad.Rotation = 90
+	sidebarGlowGrad.Parent = sidebarGlow
+
+	local tabContainer = Instance.new("Frame")
+	tabContainer.Name = "TabContainer"
+	tabContainer.Size = UDim2.new(1, 0, 1, -60)
+	tabContainer.BackgroundTransparency = 1
+	tabContainer.ZIndex = 2
+	tabContainer.Parent = sidebar
+
+	applyListLayout(tabContainer, 3)
+	applyPadding(tabContainer, 8, 8, 12, 0)
 
 	-- 👤 USER PROFILE CARD (PINNED AT BOTTOM LEFT)
 	local profileCard = Instance.new("Frame")
 	profileCard.Name = "UserProfile"
-	profileCard.Size = UDim2.new(1, -12, 0, 54)
-	profileCard.Position = UDim2.new(0, 6, 1, -60)
+	profileCard.Size = UDim2.new(1, -16, 0, 44)
+	profileCard.Position = UDim2.new(0, 8, 1, -52)
 	profileCard.BackgroundColor3 = COLORS.glassCard
-	profileCard.BackgroundTransparency = 0.35
+	profileCard.BackgroundTransparency = TRANSPARENCY.glassCard
 	profileCard.BorderSizePixel = 0
+	profileCard.ZIndex = 2
 	profileCard.Parent = sidebar
-	applyGlass(profileCard, { corner = CORNER.medium, stroke = true, strokeColor = COLORS.borderGlass, strokeTransparency = 0.7 })
 
-	local avatarFrame = Instance.new("Frame")
-	avatarFrame.Name = "AvatarFrame"
-	avatarFrame.Size = UDim2.new(0, 36, 0, 36)
-	avatarFrame.Position = UDim2.new(0, 8, 0.5, -18)
-	avatarFrame.BackgroundColor3 = COLORS.glassSurface
-	avatarFrame.BorderSizePixel = 0
-	avatarFrame.Parent = profileCard
-	applyGlass(avatarFrame, { corner = CORNER.pill, stroke = true, strokeColor = COLORS.accentCyan, strokeTransparency = 0.4 })
+	applyGlass(profileCard, {
+		corner = CORNER.small,
+		stroke = true,
+		strokeColor = COLORS.borderGlass,
+		strokeThickness = 1,
+		strokeTransparency = 0.7
+	})
 
-	local avatarImg = Instance.new("ImageLabel")
-	avatarImg.Name = "AvatarImage"
-	avatarImg.Size = UDim2.new(1, 0, 1, 0)
-	avatarImg.BackgroundTransparency = 1
-	avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(player.UserId) .. "&w=150&h=150"
-	avatarImg.Parent = avatarFrame
-	applyGlass(avatarImg, { corner = CORNER.pill })
+	local avatarLabel = Instance.new("ImageLabel")
+	avatarLabel.Name = "AvatarLabel"
+	avatarLabel.Size = UDim2.new(0, 28, 0, 28)
+	avatarLabel.Position = UDim2.new(0, 8, 0.5, -14)
+	avatarLabel.BackgroundColor3 = COLORS.glassHover
+	avatarLabel.BorderSizePixel = 0
+	avatarLabel.ZIndex = 3
+	avatarLabel.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(player.UserId) .. "&w=150&h=150"
+	avatarLabel.Parent = profileCard
+
+	local avatarCorner = Instance.new("UICorner")
+	avatarCorner.CornerRadius = CORNER.pill
+	avatarCorner.Parent = avatarLabel
+
+	local avatarStroke = Instance.new("UIStroke")
+	avatarStroke.Color = COLORS.accentCyan
+	avatarStroke.Thickness = 1
+	avatarStroke.Transparency = 0.5
+	avatarStroke.Parent = avatarLabel
 
 	task.spawn(function()
 		pcall(function()
 			local content, isReady = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
 			if isReady and content then
-				avatarImg.Image = content
+				avatarLabel.Image = content
 			end
 		end)
 	end)
 
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Name = "DisplayName"
-	nameLabel.Size = UDim2.new(1, -54, 0, 16)
-	nameLabel.Position = UDim2.new(0, 48, 0, 10)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = player.DisplayName or player.Name
-	nameLabel.TextColor3 = COLORS.textPrimary
-	nameLabel.TextSize = 11
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	nameLabel.Parent = profileCard
-
-	local userLabel = Instance.new("TextLabel")
-	userLabel.Name = "Username"
-	userLabel.Size = UDim2.new(1, -54, 0, 14)
-	userLabel.Position = UDim2.new(0, 48, 0, 26)
-	userLabel.BackgroundTransparency = 1
-	userLabel.Text = "@" .. player.Name
-	userLabel.TextColor3 = COLORS.accentCyan
-	userLabel.TextSize = 10
-	userLabel.Font = Enum.Font.GothamMedium
-	userLabel.TextXAlignment = Enum.TextXAlignment.Left
-	userLabel.TextTruncate = Enum.TextTruncate.AtEnd
-	userLabel.Parent = profileCard
+	local usernameLabel = Instance.new("TextLabel")
+	usernameLabel.Name = "UsernameLabel"
+	usernameLabel.Size = UDim2.new(1, -48, 1, 0)
+	usernameLabel.Position = UDim2.new(0, 42, 0, 0)
+	usernameLabel.BackgroundTransparency = 1
+	usernameLabel.Text = player.DisplayName or player.Name
+	usernameLabel.TextColor3 = COLORS.textPrimary
+	usernameLabel.Font = Enum.Font.GothamMedium
+	usernameLabel.TextSize = 11
+	usernameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	usernameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	usernameLabel.ZIndex = 3
+	usernameLabel.Parent = profileCard
 
 	------------------------------------------------
-	-- 📦 CONTENT CONTAINER
+	-- 🖥️ CONTENT AREA
 	------------------------------------------------
 	local contentArea = Instance.new("Frame")
 	contentArea.Name = "ContentArea"
-	contentArea.Size = UDim2.new(1, -175, 1, -48)
-	contentArea.Position = UDim2.new(0, 175, 0, 48)
+	contentArea.Size = UDim2.new(1, -150, 1, -42)
+	contentArea.Position = UDim2.new(0, 150, 0, 42)
 	contentArea.BackgroundTransparency = 1
+	contentArea.ZIndex = 1
 	contentArea.Parent = mainFrame
 
+	------------------------------------------------
+	-- 📑 TAB SYSTEM
+	------------------------------------------------
 	local tabs = {}
-	local currentTab = nil
+	local activeTab = nil
+	local tabButtons = {}
 
-	local function selectTab(tabName)
-		if currentTab == tabName then return end
-		for name, tabData in pairs(tabs) do
-			local isTarget = (name == tabName)
-			tabData.Frame.Visible = isTarget
-			if isTarget then
-				tween(tabData.Button, { BackgroundColor3 = COLORS.glassActive }, 0.2)
-				tabData.Button.UIStroke.Color = COLORS.accentCyan
-				tabData.Button.UIStroke.Transparency = 0.2
-				tabData.Button.Indicator.Visible = true
-				tabData.Button.Label.TextColor3 = COLORS.textPrimary
-			else
-				tween(tabData.Button, { BackgroundColor3 = COLORS.glassCard }, 0.2)
-				tabData.Button.UIStroke.Color = COLORS.borderGlass
-				tabData.Button.UIStroke.Transparency = 0.7
-				tabData.Button.Indicator.Visible = false
-				tabData.Button.Label.TextColor3 = COLORS.textSecondary
-			end
-		end
-		currentTab = tabName
+	local function createTabContent(name)
+		local frame = Instance.new("ScrollingFrame")
+		frame.Name = "Tab_" .. name
+		frame.Size = UDim2.new(1, 0, 1, 0)
+		frame.BackgroundTransparency = 1
+		frame.BorderSizePixel = 0
+		pcall(function()
+			frame.ScrollBarThickness = 3
+			frame.ScrollBarImageColor3 = COLORS.accentCyan
+			frame.ScrollBarImageTransparency = 0.4
+		end)
+		frame.CanvasSize = UDim2.new(0, 0, 0, 0)
+		frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		frame.ClipsDescendants = true
+		frame.Visible = false
+		frame.ZIndex = 2
+		frame.Parent = contentArea
+
+		applyPadding(frame, 14, 14, 14, 14)
+		applyListLayout(frame, 8)
+
+		return frame
 	end
 
-	------------------------------------------------
-	-- 🧱 COMPONENT CREATORS
-	------------------------------------------------
-	local function createTab(name, icon, layoutOrder)
-		local tabBtn = Instance.new("TextButton")
-		tabBtn.Name = "Nav_" .. name
-		tabBtn.Size = UDim2.new(1, 0, 0, 38)
-		tabBtn.BackgroundColor3 = COLORS.glassCard
-		tabBtn.BackgroundTransparency = 0.35
-		tabBtn.Text = ""
-		tabBtn.LayoutOrder = layoutOrder or 1
-		tabBtn.Parent = navList
-		local stroke = applyGlass(tabBtn, { corner = CORNER.medium, stroke = true, strokeColor = COLORS.borderGlass, strokeTransparency = 0.7, returnStroke = true })
+	local function selectTab(tabName)
+		for name, data in pairs(tabs) do
+			if name == tabName then
+				data.Frame.Visible = true
+				if data.Button then
+					TweenService:Create(data.Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+						BackgroundColor3 = COLORS.glassActive,
+						BackgroundTransparency = 0.15,
+					}):Play()
+					pcall(function() data.Button.TextColor3 = COLORS.textWhite end)
+				end
+				if data.Indicator then
+					data.Indicator.Visible = true
+					TweenService:Create(data.Indicator, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+						BackgroundTransparency = 0,
+					}):Play()
+				end
+			else
+				data.Frame.Visible = false
+				if data.Button then
+					TweenService:Create(data.Button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+						BackgroundColor3 = COLORS.glassSurface,
+						BackgroundTransparency = 1,
+					}):Play()
+					pcall(function() data.Button.TextColor3 = COLORS.textSecondary end)
+				end
+				if data.Indicator then
+					TweenService:Create(data.Indicator, TweenInfo.new(0.15), {
+						BackgroundTransparency = 1,
+					}):Play()
+					task.delay(0.15, function()
+						if activeTab ~= name and data.Indicator then
+							data.Indicator.Visible = false
+						end
+					end)
+				end
+			end
+		end
+		activeTab = tabName
+	end
+
+	local function addTab(name, iconText, layoutOrder)
+		local button = Instance.new("TextButton")
+		button.Name = "Nav_" .. name
+		button.Size = UDim2.new(1, 0, 0, 30)
+		button.BackgroundColor3 = COLORS.glassSurface
+		button.BackgroundTransparency = 1
+		button.BorderSizePixel = 0
+		button.ZIndex = 3
+		button.Text = "   " .. name
+		button.TextColor3 = COLORS.textSecondary
+		button.Font = Enum.Font.GothamMedium
+		button.TextSize = 12
+		button.TextXAlignment = Enum.TextXAlignment.Left
+		button.LayoutOrder = layoutOrder or 1
+		button.Parent = tabContainer
+
+		applyGlass(button, { corner = CORNER.small })
 
 		local indicator = Instance.new("Frame")
 		indicator.Name = "Indicator"
-		indicator.Size = UDim2.new(0, 3, 0, 20)
-		indicator.Position = UDim2.new(0, 4, 0.5, -10)
+		indicator.Size = UDim2.new(0, 3, 0, 16)
+		indicator.Position = UDim2.new(0, 2, 0.5, -8)
 		indicator.BackgroundColor3 = COLORS.accentCyan
+		indicator.BackgroundTransparency = 1
 		indicator.BorderSizePixel = 0
 		indicator.Visible = false
-		indicator.Parent = tabBtn
-		applyGlass(indicator, { corner = CORNER.pill })
+		indicator.ZIndex = 4
+		indicator.Parent = button
 
-		local textLabel = Instance.new("TextLabel")
-		textLabel.Name = "Label"
-		textLabel.Size = UDim2.new(1, -24, 1, 0)
-		textLabel.Position = UDim2.new(0, 16, 0, 0)
-		textLabel.BackgroundTransparency = 1
-		textLabel.Text = name
-		textLabel.TextColor3 = COLORS.textSecondary
-		textLabel.TextSize = 13
-		textLabel.Font = Enum.Font.GothamBold
-		textLabel.TextXAlignment = Enum.TextXAlignment.Left
-		textLabel.Parent = tabBtn
+		local indicatorCorner = Instance.new("UICorner")
+		indicatorCorner.CornerRadius = UDim.new(0, 2)
+		indicatorCorner.Parent = indicator
 
-		tabBtn.MouseButton1Click:Connect(function()
+		tabButtons[name] = button
+
+		local contentFrame = createTabContent(name)
+		tabs[name] = {
+			Frame = contentFrame,
+			Button = button,
+			Indicator = indicator,
+		}
+
+		button.MouseButton1Click:Connect(function()
 			selectTab(name)
 		end)
 
-		-- Content ScrollFrame for this Tab
-		local tabContent = Instance.new("ScrollingFrame")
-		tabContent.Name = "Tab_" .. name
-		tabContent.Size = UDim2.new(1, -20, 1, -20)
-		tabContent.Position = UDim2.new(0, 10, 0, 10)
-		tabContent.BackgroundTransparency = 1
-		tabContent.BorderSizePixel = 0
-		tabContent.ScrollBarThickness = 3
-		tabContent.ScrollBarImageColor3 = COLORS.accentCyan
-		tabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
-		tabContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
-		tabContent.Visible = false
-		tabContent.Parent = contentArea
+		pcall(function()
+			button.MouseEnter:Connect(function()
+				if activeTab ~= name then
+					TweenService:Create(button, TweenInfo.new(0.15), {
+						BackgroundColor3 = COLORS.glassHover,
+						BackgroundTransparency = 0.5,
+					}):Play()
+				end
+			end)
+			button.MouseLeave:Connect(function()
+				if activeTab ~= name then
+					TweenService:Create(button, TweenInfo.new(0.15), {
+						BackgroundColor3 = COLORS.glassSurface,
+						BackgroundTransparency = 1,
+					}):Play()
+				end
+			end)
+		end)
 
-		local tabLayout = Instance.new("UIListLayout")
-		tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		tabLayout.Padding = UDim.new(0, 10)
-		tabLayout.Parent = tabContent
-
-		local tabPadding = Instance.new("UIPadding")
-		tabPadding.PaddingRight = UDim.new(0, 6)
-		tabPadding.PaddingBottom = UDim.new(0, 12)
-		tabPadding.Parent = tabContent
-
-		tabs[name] = {
-			Button = tabBtn,
-			Frame = tabContent,
-			UIStroke = stroke,
-			Indicator = indicator,
-			Label = textLabel
-		}
-
-		return tabContent
+		return contentFrame
 	end
 
-	local function addSection(parent, titleText, layoutOrder)
+	------------------------------------------------
+	-- 📦 COLLAPSIBLE SECTION COMPONENT
+	------------------------------------------------
+	local function createCollapsibleSection(parent, title, layoutOrder)
 		local sectionCard = Instance.new("Frame")
-		sectionCard.Name = "Section_" .. titleText
+		sectionCard.Name = "Section_" .. title
 		sectionCard.Size = UDim2.new(1, 0, 0, 0)
 		sectionCard.AutomaticSize = Enum.AutomaticSize.Y
-		sectionCard.BackgroundColor3 = COLORS.glassCard
-		sectionCard.BackgroundTransparency = TRANSPARENCY.glassCard
+		sectionCard.BackgroundTransparency = 1
 		sectionCard.LayoutOrder = layoutOrder or 1
 		sectionCard.Parent = parent
-		applyGlass(sectionCard, { corner = CORNER.medium, stroke = true, strokeColor = COLORS.borderGlass, gradient = true })
 
-		local secPadding = Instance.new("UIPadding")
-		secPadding.PaddingTop = UDim.new(0, 10)
-		secPadding.PaddingBottom = UDim.new(0, 10)
-		secPadding.PaddingLeft = UDim.new(0, 12)
-		secPadding.PaddingRight = UDim.new(0, 12)
-		secPadding.Parent = sectionCard
+		local sectionLayout = Instance.new("UIListLayout")
+		sectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		sectionLayout.Padding = UDim.new(0, 6)
+		sectionLayout.Parent = sectionCard
 
-		local secLayout = Instance.new("UIListLayout")
-		secLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		secLayout.Padding = UDim.new(0, 8)
-		secLayout.Parent = sectionCard
-
-		local header = Instance.new("TextLabel")
+		local header = Instance.new("TextButton")
 		header.Name = "Header"
-		header.Size = UDim2.new(1, 0, 0, 20)
-		header.BackgroundTransparency = 1
-		header.Text = string.upper(titleText)
-		header.TextColor3 = COLORS.accentCyan
-		header.TextSize = 11
-		header.Font = Enum.Font.GothamBold
-		header.TextXAlignment = Enum.TextXAlignment.Left
-		header.LayoutOrder = 0
+		header.Size = UDim2.new(1, 0, 0, 34)
+		header.BackgroundColor3 = Color3.fromRGB(24, 28, 52)
+		header.BackgroundTransparency = 0.08
+		header.BorderSizePixel = 0
+		header.Text = ""
+		header.LayoutOrder = 1
 		header.Parent = sectionCard
 
-		return sectionCard
+		local hCorner = Instance.new("UICorner")
+		hCorner.CornerRadius = UDim.new(0, 8)
+		hCorner.Parent = header
+
+		local hStroke = Instance.new("UIStroke")
+		hStroke.Color = Color3.fromRGB(50, 65, 110)
+		hStroke.Thickness = 1
+		hStroke.Transparency = 0.55
+		hStroke.Parent = header
+
+		local accentBar = Instance.new("Frame")
+		accentBar.Name = "AccentBar"
+		accentBar.Size = UDim2.new(0, 3, 0, 18)
+		accentBar.Position = UDim2.new(0, 6, 0.5, -9)
+		accentBar.BackgroundColor3 = COLORS.accentCyan
+		accentBar.BorderSizePixel = 0
+		accentBar.Parent = header
+
+		local accentCorner = Instance.new("UICorner")
+		accentCorner.CornerRadius = UDim.new(0, 2)
+		accentCorner.Parent = accentBar
+
+		local hTitle = Instance.new("TextLabel")
+		hTitle.Name = "headerTitle"
+		hTitle.Size = UDim2.new(1, -50, 1, 0)
+		hTitle.Position = UDim2.new(0, 18, 0, 0)
+		hTitle.BackgroundTransparency = 1
+		hTitle.Text = string.upper(title)
+		hTitle.TextColor3 = COLORS.textPrimary
+		hTitle.Font = Enum.Font.GothamBold
+		hTitle.TextSize = 13
+		hTitle.TextXAlignment = Enum.TextXAlignment.Left
+		hTitle.Parent = header
+
+		local arrow = Instance.new("TextLabel")
+		arrow.Name = "Arrow"
+		arrow.Size = UDim2.new(0, 24, 0, 24)
+		arrow.Position = UDim2.new(1, -24, 0.5, 0)
+		arrow.AnchorPoint = Vector2.new(0.5, 0.5)
+		arrow.BackgroundTransparency = 1
+		arrow.Text = "v"
+		arrow.TextColor3 = COLORS.accentCyan
+		arrow.Font = Enum.Font.GothamBold
+		arrow.TextSize = 13
+		arrow.TextXAlignment = Enum.TextXAlignment.Center
+		arrow.TextYAlignment = Enum.TextYAlignment.Center
+		arrow.Parent = header
+
+		local container = Instance.new("Frame")
+		container.Name = "Container"
+		container.Size = UDim2.new(1, 0, 0, 0)
+		container.AutomaticSize = Enum.AutomaticSize.Y
+		container.BackgroundTransparency = 1
+		container.LayoutOrder = 2
+		container.ClipsDescendants = false
+		container.Visible = true
+		container.Parent = sectionCard
+
+		local contentLayout = Instance.new("UIListLayout")
+		contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		contentLayout.Padding = UDim.new(0, 6)
+		contentLayout.Parent = container
+
+		pcall(function()
+			header.MouseEnter:Connect(function()
+				TweenService:Create(header, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(30, 36, 64) }):Play()
+				TweenService:Create(accentBar, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(60, 220, 255) }):Play()
+				hTitle.TextColor3 = COLORS.textWhite
+			end)
+			header.MouseLeave:Connect(function()
+				TweenService:Create(header, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(24, 28, 52) }):Play()
+				TweenService:Create(accentBar, TweenInfo.new(0.15), { BackgroundColor3 = COLORS.accentCyan }):Play()
+				hTitle.TextColor3 = COLORS.textPrimary
+			end)
+		end)
+
+		local isExpanded = true
+		header.MouseButton1Click:Connect(function()
+			isExpanded = not isExpanded
+			container.Visible = isExpanded
+			local targetRot = isExpanded and 0 or -90
+			TweenService:Create(arrow, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Rotation = targetRot }):Play()
+		end)
+
+		return container
 	end
 
-	local function addToggle(parent, labelText, defaultVal, callback, layoutOrder)
-		local state = defaultVal or false
-		local toggleFrame = Instance.new("Frame")
-		toggleFrame.Name = "Toggle_" .. labelText
-		toggleFrame.Size = UDim2.new(1, 0, 0, 36)
-		toggleFrame.BackgroundColor3 = COLORS.glassSurface
-		toggleFrame.BackgroundTransparency = 0.4
-		toggleFrame.LayoutOrder = layoutOrder or 1
-		toggleFrame.Parent = parent
-		applyGlass(toggleFrame, { corner = CORNER.small, stroke = true, strokeColor = COLORS.borderGlass, strokeTransparency = 0.8 })
+	------------------------------------------------
+	-- 🔘 GLASS TOGGLE COMPONENT
+	------------------------------------------------
+	local function createGlassToggle(parent, labelText, defaultState, callback, layoutOrder)
+		local card = Instance.new("Frame")
+		card.Name = "Toggle_" .. labelText
+		card.Size = UDim2.new(1, 0, 0, 34)
+		card.BackgroundColor3 = COLORS.glassCard
+		card.BackgroundTransparency = TRANSPARENCY.glassCard
+		card.BorderSizePixel = 0
+		card.LayoutOrder = layoutOrder or 0
+		card.ZIndex = 2
+		card.Parent = parent
 
-		local label = Instance.new("TextLabel")
-		label.Name = "Label"
-		label.Size = UDim2.new(1, -60, 1, 0)
-		label.Position = UDim2.new(0, 10, 0, 0)
-		label.BackgroundTransparency = 1
-		label.Text = labelText
-		label.TextColor3 = COLORS.textPrimary
-		label.TextSize = 12
-		label.Font = Enum.Font.GothamMedium
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Parent = toggleFrame
+		applyGlass(card, {
+			corner = CORNER.small,
+			stroke = true,
+			strokeColor = COLORS.borderGlass,
+			strokeThickness = 1,
+			strokeTransparency = 0.75
+		})
 
-		local toggleTrack = Instance.new("TextButton")
-		toggleTrack.Name = "Track"
-		toggleTrack.Size = UDim2.new(0, 42, 0, 22)
-		toggleTrack.Position = UDim2.new(1, -52, 0.5, -11)
-		toggleTrack.BackgroundColor3 = state and COLORS.toggleOn or COLORS.toggleOff
-		toggleTrack.Text = ""
-		toggleTrack.Parent = toggleFrame
-		applyGlass(toggleTrack, { corner = CORNER.pill, stroke = true, strokeColor = state and COLORS.accentCyan or COLORS.borderGlass, strokeTransparency = 0.4 })
+		local title = Instance.new("TextLabel")
+		title.Name = "Title"
+		title.Size = UDim2.new(0.65, 0, 1, 0)
+		title.Position = UDim2.new(0, 12, 0, 0)
+		title.BackgroundTransparency = 1
+		title.Text = labelText
+		title.TextColor3 = COLORS.textPrimary
+		title.Font = Enum.Font.GothamMedium
+		title.TextSize = 12
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.ZIndex = 3
+		title.Parent = card
 
-		local knob = Instance.new("Frame")
-		knob.Name = "Knob"
-		knob.Size = UDim2.new(0, 16, 0, 16)
-		knob.Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
-		knob.BackgroundColor3 = COLORS.textWhite
-		knob.BorderSizePixel = 0
-		knob.Parent = toggleTrack
-		applyGlass(knob, { corner = CORNER.pill })
+		local track = Instance.new("TextButton")
+		track.Name = "Track"
+		track.Size = UDim2.new(0, 38, 0, 20)
+		track.Position = UDim2.new(1, -48, 0.5, -10)
+		track.BackgroundColor3 = defaultState and COLORS.toggleOn or COLORS.toggleOff
+		track.BackgroundTransparency = 0.15
+		track.BorderSizePixel = 0
+		track.Text = ""
+		track.ZIndex = 3
+		track.Parent = card
 
-		local function updateToggle(animate)
-			local targetBg = state and COLORS.toggleOn or COLORS.toggleOff
-			local targetPos = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
-			local targetStroke = state and COLORS.accentCyan or COLORS.borderGlass
-			if animate then
-				tween(toggleTrack, { BackgroundColor3 = targetBg }, 0.2)
-				tween(knob, { Position = targetPos }, 0.2, Enum.EasingStyle.Back)
-				if toggleTrack:FindFirstChild("UIStroke") then
-					tween(toggleTrack.UIStroke, { Color = targetStroke }, 0.2)
-				end
-			else
-				toggleTrack.BackgroundColor3 = targetBg
-				knob.Position = targetPos
-				if toggleTrack:FindFirstChild("UIStroke") then
-					toggleTrack.UIStroke.Color = targetStroke
-				end
+		local trackCorner = Instance.new("UICorner")
+		trackCorner.CornerRadius = CORNER.pill
+		trackCorner.Parent = track
+
+		local trackStroke = Instance.new("UIStroke")
+		trackStroke.Color = COLORS.accentCyan
+		trackStroke.Thickness = 1
+		trackStroke.Transparency = defaultState and 0.3 or 0.7
+		trackStroke.Parent = track
+
+		local thumb = Instance.new("Frame")
+		thumb.Name = "Thumb"
+		thumb.Size = UDim2.new(0, 14, 0, 14)
+		thumb.Position = defaultState and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+		thumb.BackgroundColor3 = COLORS.textWhite
+		thumb.BorderSizePixel = 0
+		thumb.ZIndex = 4
+		thumb.Parent = track
+
+		local thumbCorner = Instance.new("UICorner")
+		thumbCorner.CornerRadius = CORNER.pill
+		thumbCorner.Parent = thumb
+
+		local fullClickBtn = Instance.new("TextButton")
+		fullClickBtn.Name = "FullClick"
+		fullClickBtn.Size = UDim2.new(1, 0, 1, 0)
+		fullClickBtn.BackgroundTransparency = 1
+		fullClickBtn.Text = ""
+		fullClickBtn.ZIndex = 5
+		fullClickBtn.Parent = card
+
+		local state = defaultState or false
+
+		local function updateToggle(newState, triggerCallback)
+			state = newState
+			local targetColor = state and COLORS.toggleOn or COLORS.toggleOff
+			local targetThumbPos = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+			local targetStrokeTrans = state and 0.3 or 0.7
+
+			TweenService:Create(track, TweenInfo.new(0.2), { BackgroundColor3 = targetColor }):Play()
+			TweenService:Create(thumb, TweenInfo.new(0.2), { Position = targetThumbPos }):Play()
+			TweenService:Create(trackStroke, TweenInfo.new(0.2), { Transparency = targetStrokeTrans }):Play()
+
+			if triggerCallback and callback then
+				task.spawn(callback, state)
 			end
 		end
 
-		toggleTrack.MouseButton1Click:Connect(function()
-			state = not state
-			updateToggle(true)
-			if callback then
-				task.spawn(callback, state)
-			end
+		fullClickBtn.MouseButton1Click:Connect(function()
+			updateToggle(not state, true)
+		end)
+		track.MouseButton1Click:Connect(function()
+			updateToggle(not state, true)
 		end)
 
 		return {
-			Frame = toggleFrame,
-			Set = function(v)
-				state = v
-				updateToggle(true)
-			end,
-			Get = function()
-				return state
-			end
+			Frame = card,
+			Set = function(v) updateToggle(v, false) end,
+			Get = function() return state end
 		}
 	end
 
-	local function addButton(parent, text, callback, layoutOrder, isDanger)
-		local btn = Instance.new("TextButton")
-		btn.Name = "Btn_" .. text
-		btn.Size = UDim2.new(1, 0, 0, 34)
-		btn.BackgroundColor3 = isDanger and Color3.fromRGB(80, 25, 30) or COLORS.glassSurface
-		btn.BackgroundTransparency = 0.3
-		btn.Text = text
-		btn.TextColor3 = isDanger and COLORS.dangerRed or COLORS.textPrimary
-		btn.TextSize = 12
-		btn.Font = Enum.Font.GothamBold
-		btn.LayoutOrder = layoutOrder or 1
-		btn.Parent = parent
-		applyGlass(btn, { corner = CORNER.small, stroke = true, strokeColor = isDanger and COLORS.dangerRed or COLORS.accentCyan, strokeTransparency = isDanger and 0.5 or 0.7 })
+	------------------------------------------------
+	-- 🔘 GLASS BUTTON COMPONENT
+	------------------------------------------------
+	local function createGlassButton(parent, labelText, callback, layoutOrder)
+		local card = Instance.new("Frame")
+		card.Name = "Button_" .. labelText
+		card.Size = UDim2.new(1, 0, 0, 34)
+		card.BackgroundColor3 = COLORS.glassCard
+		card.BackgroundTransparency = TRANSPARENCY.glassCard
+		card.BorderSizePixel = 0
+		card.LayoutOrder = layoutOrder or 0
+		card.ZIndex = 2
+		card.Parent = parent
 
-		local normalBg = isDanger and Color3.fromRGB(80, 25, 30) or COLORS.glassSurface
-		local hoverBg = isDanger and Color3.fromRGB(110, 35, 40) or COLORS.glassHover
-		addHoverAnimation(btn, normalBg, hoverBg)
+		applyGlass(card, {
+			corner = CORNER.small,
+			stroke = true,
+			strokeColor = COLORS.borderGlass,
+			strokeThickness = 1,
+			strokeTransparency = 0.75
+		})
 
-		btn.MouseButton1Click:Connect(function()
-			tween(btn, { Size = UDim2.new(1, -4, 0, 32) }, 0.08, Enum.EasingStyle.Quad).Completed:Connect(function()
-				tween(btn, { Size = UDim2.new(1, 0, 0, 34) }, 0.08)
+		local button = Instance.new("TextButton")
+		button.Name = "ActionBtn"
+		button.Size = UDim2.new(1, -16, 0, 26)
+		button.Position = UDim2.new(0, 8, 0.5, -13)
+		button.BackgroundColor3 = COLORS.glassPrimary
+		button.BackgroundTransparency = 0.2
+		button.BorderSizePixel = 0
+		button.Text = labelText or "Button"
+		button.TextColor3 = COLORS.accentCyan
+		button.Font = Enum.Font.GothamBold
+		button.TextSize = 12
+		button.ZIndex = 3
+		button.Parent = card
+
+		applyGlass(button, {
+			corner = CORNER.small,
+			stroke = true,
+			strokeColor = COLORS.accentCyan,
+			strokeThickness = 1,
+			strokeTransparency = 0.55
+		})
+
+		pcall(function()
+			button.MouseEnter:Connect(function()
+				TweenService:Create(button, TweenInfo.new(0.15), { BackgroundTransparency = 0.05, TextColor3 = COLORS.textWhite }):Play()
 			end)
-			if callback then
-				task.spawn(callback)
-			end
+			button.MouseLeave:Connect(function()
+				TweenService:Create(button, TweenInfo.new(0.15), { BackgroundTransparency = 0.2, TextColor3 = COLORS.accentCyan }):Play()
+			end)
 		end)
 
-		return btn
+		if callback then
+			button.MouseButton1Click:Connect(function()
+				task.spawn(callback)
+			end)
+		end
+
+		return { Frame = card, Button = button }
 	end
 
-	local function addSlider(parent, labelText, minVal, maxVal, defaultVal, callback, layoutOrder, unit)
-		unit = unit or ""
-		local val = math.clamp(defaultVal or minVal, minVal, maxVal)
+	------------------------------------------------
+	-- 🎚️ GLASS SLIDER COMPONENT
+	------------------------------------------------
+	local function addSlider(parent, title, minVal, maxVal, defaultVal, callback, layoutOrder, unit)
+		local card = Instance.new("Frame")
+		card.Name = "Slider_" .. title
+		card.Size = UDim2.new(1, 0, 0, 46)
+		card.BackgroundColor3 = COLORS.glassCard
+		card.BackgroundTransparency = TRANSPARENCY.glassCard
+		card.BorderSizePixel = 0
+		card.LayoutOrder = layoutOrder or 1
+		card.ZIndex = 2
+		card.Parent = parent
 
-		local sliderFrame = Instance.new("Frame")
-		sliderFrame.Name = "Slider_" .. labelText
-		sliderFrame.Size = UDim2.new(1, 0, 0, 50)
-		sliderFrame.BackgroundColor3 = COLORS.glassSurface
-		sliderFrame.BackgroundTransparency = 0.4
-		sliderFrame.LayoutOrder = layoutOrder or 1
-		sliderFrame.Parent = parent
-		applyGlass(sliderFrame, { corner = CORNER.small, stroke = true, strokeColor = COLORS.borderGlass, strokeTransparency = 0.8 })
+		applyGlass(card, {
+			corner = CORNER.small,
+			stroke = true,
+			strokeColor = COLORS.borderGlass,
+			strokeThickness = 1,
+			strokeTransparency = 0.75
+		})
 
-		local label = Instance.new("TextLabel")
-		label.Name = "Label"
-		label.Size = UDim2.new(1, -70, 0, 22)
-		label.Position = UDim2.new(0, 10, 0, 4)
-		label.BackgroundTransparency = 1
-		label.Text = labelText
-		label.TextColor3 = COLORS.textPrimary
-		label.TextSize = 12
-		label.Font = Enum.Font.GothamMedium
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Parent = sliderFrame
+		local titleLabel = Instance.new("TextLabel")
+		titleLabel.Name = "Title"
+		titleLabel.Size = UDim2.new(0.65, 0, 0, 18)
+		titleLabel.Position = UDim2.new(0, 12, 0, 6)
+		titleLabel.BackgroundTransparency = 1
+		titleLabel.Text = title
+		titleLabel.TextColor3 = COLORS.textPrimary
+		titleLabel.Font = Enum.Font.GothamMedium
+		titleLabel.TextSize = 12
+		titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+		titleLabel.ZIndex = 3
+		titleLabel.Parent = card
 
 		local valLabel = Instance.new("TextLabel")
-		valLabel.Name = "ValLabel"
-		valLabel.Size = UDim2.new(0, 55, 0, 22)
-		valLabel.Position = UDim2.new(1, -65, 0, 4)
+		valLabel.Name = "Value"
+		valLabel.Size = UDim2.new(0.35, -12, 0, 18)
+		valLabel.Position = UDim2.new(0.65, 0, 0, 6)
 		valLabel.BackgroundTransparency = 1
-		valLabel.Text = tostring(val) .. unit
+		valLabel.Text = tostring(defaultVal or minVal) .. (unit and (" " .. unit) or "")
 		valLabel.TextColor3 = COLORS.accentCyan
-		valLabel.TextSize = 12
 		valLabel.Font = Enum.Font.GothamBold
+		valLabel.TextSize = 11
 		valLabel.TextXAlignment = Enum.TextXAlignment.Right
-		valLabel.Parent = sliderFrame
+		valLabel.ZIndex = 3
+		valLabel.Parent = card
 
 		local track = Instance.new("Frame")
 		track.Name = "Track"
-		track.Size = UDim2.new(1, -20, 0, 8)
-		track.Position = UDim2.new(0, 10, 0, 32)
-		track.BackgroundColor3 = COLORS.glassActive
+		track.Size = UDim2.new(1, -24, 0, 6)
+		track.Position = UDim2.new(0, 12, 1, -12)
+		track.BackgroundColor3 = COLORS.glassSurface
 		track.BorderSizePixel = 0
-		track.Parent = sliderFrame
+		track.ZIndex = 3
+		track.Parent = card
+
 		applyGlass(track, { corner = CORNER.pill })
 
 		local fill = Instance.new("Frame")
 		fill.Name = "Fill"
-		local pct = (val - minVal) / (maxVal - minVal)
-		fill.Size = UDim2.new(pct, 0, 1, 0)
+		fill.Size = UDim2.new(0, 0, 1, 0)
 		fill.BackgroundColor3 = COLORS.accentCyan
 		fill.BorderSizePixel = 0
+		fill.ZIndex = 4
 		fill.Parent = track
+
 		applyGlass(fill, { corner = CORNER.pill })
 
-		local dragging = false
-		local function updateFromInput(input)
-			local trackPos = track.AbsolutePosition.X
-			local trackWidth = track.AbsoluteSize.X
-			local inputX = input.Position.X
-			local rel = math.clamp((inputX - trackPos) / trackWidth, 0, 1)
-			val = math.floor(minVal + (maxVal - minVal) * rel)
-			fill.Size = UDim2.new(rel, 0, 1, 0)
-			valLabel.Text = tostring(val) .. unit
-			if callback then
+		local thumb = Instance.new("Frame")
+		thumb.Name = "Thumb"
+		thumb.Size = UDim2.new(0, 12, 0, 12)
+		thumb.Position = UDim2.new(0, -6, 0.5, -6)
+		thumb.BackgroundColor3 = COLORS.textWhite
+		thumb.BorderSizePixel = 0
+		thumb.ZIndex = 5
+		thumb.Parent = fill
+
+		applyGlass(thumb, { corner = CORNER.pill })
+
+		local clickArea = Instance.new("TextButton")
+		clickArea.Name = "ClickArea"
+		clickArea.Size = UDim2.new(1, 0, 0, 18)
+		clickArea.Position = UDim2.new(0, 0, 0.5, -9)
+		clickArea.BackgroundTransparency = 1
+		clickArea.Text = ""
+		clickArea.ZIndex = 6
+		clickArea.Parent = track
+
+		local val = defaultVal or minVal
+		local sliding = false
+
+		local function setVal(newVal, triggerCallback)
+			newVal = math.clamp(newVal, minVal, maxVal)
+			val = newVal
+			local pct = (val - minVal) / (maxVal - minVal)
+			fill.Size = UDim2.new(pct, 0, 1, 0)
+			valLabel.Text = tostring(val) .. (unit and (" " .. unit) or "")
+			if triggerCallback and callback then
 				task.spawn(callback, val)
 			end
 		end
 
-		track.InputBegan:Connect(function(input)
+		local function updateFromPos(xPos)
+			local trackAbsPos = track.AbsolutePosition.X
+			local trackAbsSize = track.AbsoluteSize.X
+			local pct = math.clamp((xPos - trackAbsPos) / trackAbsSize, 0, 1)
+			local calculated = math.floor(minVal + pct * (maxVal - minVal) + 0.5)
+			setVal(calculated, true)
+		end
+
+		clickArea.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				dragging = true
-				updateFromInput(input)
+				sliding = true
+				updateFromPos(input.Position.X)
 			end
 		end)
 
 		UserInputService.InputEnded:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				dragging = false
+				sliding = false
 			end
 		end)
 
 		UserInputService.InputChanged:Connect(function(input)
-			if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-				updateFromInput(input)
+			if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+				updateFromPos(input.Position.X)
 			end
 		end)
 
+		setVal(val, false)
+
 		return {
-			Frame = sliderFrame,
-			Set = function(newVal)
-				val = math.clamp(newVal, minVal, maxVal)
-				local rel = (val - minVal) / (maxVal - minVal)
-				fill.Size = UDim2.new(rel, 0, 1, 0)
-				valLabel.Text = tostring(val) .. unit
-			end,
+			Frame = card,
+			Set = function(v) setVal(v, false) end,
 			Get = function() return val end
 		}
 	end
 
-	local function addDropdown(parent, labelText, options, defaultVal, callback, layoutOrder)
-		local selected = defaultVal or options[1] or "Select"
-		local isOpen = false
+	------------------------------------------------
+	-- 📋 MULTI-SELECT DROPDOWN COMPONENT
+	------------------------------------------------
+	local dropdownsList = {}
+	local function closeAllDropdowns()
+		for _, dd in ipairs(dropdownsList) do
+			if dd.isOpen then
+				dd.isOpen = false
+				local m = dd.menu
+				local targetWidth = m.Size.X.Offset
+				local tw = TweenService:Create(m, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					BackgroundTransparency = 1,
+					Size = UDim2.new(0, targetWidth > 0 and targetWidth or 230, 0, 0)
+				})
+				tw.Completed:Connect(function()
+					if not dd.isOpen then m.Visible = false end
+				end)
+				tw:Play()
+			end
+		end
+	end
 
-		local dropdownContainer = Instance.new("Frame")
-		dropdownContainer.Name = "Dropdown_" .. labelText
-		dropdownContainer.Size = UDim2.new(1, 0, 0, 60)
-		dropdownContainer.BackgroundTransparency = 1
-		dropdownContainer.ClipsDescendants = false
-		dropdownContainer.LayoutOrder = layoutOrder or 1
-		dropdownContainer.Parent = parent
+	local function addMultiDropdown(parent, labelText, optionsList, initialMap, callback, layoutOrder)
+		local card = Instance.new("Frame")
+		card.Name = "MultiDropdown_" .. labelText
+		card.Size = UDim2.new(1, 0, 0, 34)
+		card.BackgroundColor3 = COLORS.glassCard
+		card.BackgroundTransparency = TRANSPARENCY.glassCard
+		card.BorderSizePixel = 0
+		card.LayoutOrder = layoutOrder or 0
+		card.ZIndex = 2
+		card.Parent = parent
 
-		local label = Instance.new("TextLabel")
-		label.Name = "Label"
-		label.Size = UDim2.new(1, 0, 0, 18)
-		label.BackgroundTransparency = 1
-		label.Text = labelText
-		label.TextColor3 = COLORS.textSecondary
-		label.TextSize = 11
-		label.Font = Enum.Font.GothamMedium
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Parent = dropdownContainer
+		applyGlass(card, {
+			corner = CORNER.small,
+			stroke = true,
+			strokeColor = COLORS.borderGlass,
+			strokeThickness = 1,
+			strokeTransparency = 0.75
+		})
+
+		local title = Instance.new("TextLabel")
+		title.Name = "Title"
+		title.Size = UDim2.new(0.5, 0, 1, 0)
+		title.Position = UDim2.new(0, 12, 0, 0)
+		title.BackgroundTransparency = 1
+		title.Text = labelText
+		title.TextColor3 = COLORS.textSecondary
+		title.Font = Enum.Font.GothamMedium
+		title.TextSize = 12
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.ZIndex = 3
+		title.Parent = card
 
 		local mainBtn = Instance.new("TextButton")
 		mainBtn.Name = "MainBtn"
-		mainBtn.Size = UDim2.new(1, 0, 0, 34)
-		mainBtn.Position = UDim2.new(0, 0, 0, 22)
-		mainBtn.BackgroundColor3 = COLORS.glassSurface
-		mainBtn.BackgroundTransparency = 0.3
+		mainBtn.Size = UDim2.new(0, 150, 0, 24)
+		mainBtn.Position = UDim2.new(1, -160, 0.5, -12)
+		mainBtn.BackgroundColor3 = COLORS.glassPrimary
+		mainBtn.BackgroundTransparency = 0.2
+		mainBtn.BorderSizePixel = 0
 		mainBtn.Text = ""
-		mainBtn.Parent = dropdownContainer
-		applyGlass(mainBtn, { corner = CORNER.small, stroke = true, strokeColor = COLORS.borderGlass, strokeTransparency = 0.7 })
+		mainBtn.ZIndex = 3
+		mainBtn.Parent = card
+
+		applyGlass(mainBtn, {
+			corner = CORNER.small,
+			stroke = true,
+			strokeColor = COLORS.accentCyan,
+			strokeThickness = 1,
+			strokeTransparency = 0.55
+		})
 
 		local selText = Instance.new("TextLabel")
 		selText.Name = "SelectedText"
-		selText.Size = UDim2.new(1, -30, 1, 0)
-		selText.Position = UDim2.new(0, 10, 0, 0)
+		selText.Size = UDim2.new(1, -26, 1, 0)
+		selText.Position = UDim2.new(0, 8, 0, 0)
 		selText.BackgroundTransparency = 1
-		selText.Text = selected
+		selText.Text = "All Selected"
 		selText.TextColor3 = COLORS.textPrimary
-		selText.TextSize = 12
-		selText.Font = Enum.Font.GothamBold
+		selText.Font = Enum.Font.GothamMedium
+		selText.TextSize = 11
 		selText.TextXAlignment = Enum.TextXAlignment.Left
+		selText.TextTruncate = Enum.TextTruncate.AtEnd
+		selText.ZIndex = 4
 		selText.Parent = mainBtn
 
 		local arrow = Instance.new("TextLabel")
 		arrow.Name = "Arrow"
-		arrow.Size = UDim2.new(0, 20, 1, 0)
-		arrow.Position = UDim2.new(1, -26, 0, 0)
+		arrow.Size = UDim2.new(0, 18, 1, 0)
+		arrow.Position = UDim2.new(1, -18, 0, 0)
 		arrow.BackgroundTransparency = 1
-		arrow.Text = "▼"
+		arrow.Text = "v"
 		arrow.TextColor3 = COLORS.accentCyan
-		arrow.TextSize = 10
+		arrow.Font = Enum.Font.GothamBold
+		arrow.TextSize = 11
+		arrow.ZIndex = 4
 		arrow.Parent = mainBtn
 
-		-- Popup List Frame
-		local listHeight = math.min(#options * 30 + 8, 140)
-		local listFrame = Instance.new("ScrollingFrame")
-		listFrame.Name = "ListFrame"
-		listFrame.Size = UDim2.new(1, 0, 0, listHeight)
-		listFrame.Position = UDim2.new(0, 0, 0, 60)
-		listFrame.BackgroundColor3 = COLORS.glassPrimary
-		listFrame.BackgroundTransparency = 0.05
-		listFrame.BorderSizePixel = 0
-		listFrame.ScrollBarThickness = 2
-		listFrame.ScrollBarImageColor3 = COLORS.accentCyan
-		listFrame.Visible = false
-		listFrame.ZIndex = 50
-		listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-		listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-		listFrame.Parent = dropdownContainer
-		applyGlass(listFrame, { corner = CORNER.small, stroke = true, strokeColor = COLORS.accentCyan, strokeTransparency = 0.5 })
+		local fullClick = Instance.new("TextButton")
+		fullClick.Name = "FullClick"
+		fullClick.Size = UDim2.new(1, 0, 1, 0)
+		fullClick.BackgroundTransparency = 1
+		fullClick.Text = ""
+		fullClick.ZIndex = 5
+		fullClick.Parent = card
 
-		local listLayout = Instance.new("UIListLayout")
-		listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		listLayout.Padding = UDim.new(0, 2)
-		listLayout.Parent = listFrame
+		-- Dropdown Menu Popout Overlay
+		local menu = Instance.new("Frame")
+		menu.Name = "Menu_" .. labelText
+		menu.Size = UDim2.new(0, 230, 0, 0)
+		menu.BackgroundColor3 = COLORS.glassSurface
+		menu.BackgroundTransparency = 0.05
+		menu.BorderSizePixel = 0
+		menu.ClipsDescendants = true
+		menu.Visible = false
+		menu.ZIndex = 500
+		menu.Parent = mainFrame
 
-		local listPad = Instance.new("UIPadding")
-		listPad.PaddingTop = UDim.new(0, 4)
-		listPad.PaddingBottom = UDim.new(0, 4)
-		listPad.PaddingLeft = UDim.new(0, 4)
-		listPad.PaddingRight = UDim.new(0, 4)
-		listPad.Parent = listFrame
+		applyGlass(menu, {
+			corner = CORNER.medium,
+			stroke = true,
+			strokeColor = COLORS.accentCyan,
+			strokeThickness = 1,
+			strokeTransparency = 0.45,
+			gradient = true,
+			gradientRotation = 180
+		})
 
-		local function toggleOpen(open)
-			if open == nil then
-				isOpen = not isOpen
-			else
-				isOpen = open
-			end
-			listHeight = math.min(#options * 30 + 8, 140)
-			listFrame.Size = UDim2.new(1, 0, 0, listHeight)
-			if isOpen then
-				listFrame.Visible = true
-				arrow.Text = "▲"
-				tween(dropdownContainer, { Size = UDim2.new(1, 0, 0, 60 + listHeight + 6) }, 0.2)
-			else
-				arrow.Text = "▼"
-				tween(dropdownContainer, { Size = UDim2.new(1, 0, 0, 60) }, 0.2).Completed:Connect(function()
-					if not isOpen then
-						listFrame.Visible = false
-					end
-				end)
-			end
-		end
+		local search = Instance.new("TextBox")
+		search.Name = "SearchBox"
+		search.Size = UDim2.new(1, -40, 0, 26)
+		search.Position = UDim2.new(0, 8, 0, 8)
+		search.BackgroundColor3 = COLORS.glassPrimary
+		search.BackgroundTransparency = 0.15
+		search.BorderSizePixel = 0
+		search.Text = ""
+		search.PlaceholderText = "Search..."
+		search.PlaceholderColor3 = COLORS.textMuted
+		search.TextColor3 = COLORS.textWhite
+		search.Font = Enum.Font.GothamMedium
+		search.TextSize = 11
+		search.ClearTextOnFocus = false
+		search.ZIndex = 501
+		search.Parent = menu
 
-		local function populate()
-			for _, child in ipairs(listFrame:GetChildren()) do
-				if child:IsA("TextButton") then child:Destroy() end
-			end
-			for i, opt in ipairs(options) do
-				local optBtn = Instance.new("TextButton")
-				optBtn.Name = "Opt_" .. opt
-				optBtn.Size = UDim2.new(1, 0, 0, 28)
-				optBtn.BackgroundColor3 = (opt == selected) and COLORS.glassActive or COLORS.glassSurface
-				optBtn.BackgroundTransparency = 0.4
-				optBtn.Text = opt
-				optBtn.TextColor3 = (opt == selected) and COLORS.accentCyan or COLORS.textPrimary
-				optBtn.TextSize = 11
-				optBtn.Font = Enum.Font.GothamMedium
-				optBtn.ZIndex = 51
-				optBtn.LayoutOrder = i
-				optBtn.Parent = listFrame
-				applyGlass(optBtn, { corner = CORNER.small })
+		applyGlass(search, {
+			corner = CORNER.small,
+			stroke = true,
+			strokeColor = COLORS.borderGlass,
+			strokeThickness = 1,
+			strokeTransparency = 0.6
+		})
 
-				optBtn.MouseButton1Click:Connect(function()
-					selected = opt
-					selText.Text = selected
-					toggleOpen(false)
-					populate()
-					if callback then
-						task.spawn(callback, selected)
-					end
-				end)
-			end
-		end
+		local closeBtn = Instance.new("TextButton")
+		closeBtn.Name = "CloseBtn"
+		closeBtn.Size = UDim2.new(0, 24, 0, 24)
+		closeBtn.Position = UDim2.new(1, -28, 0, 9)
+		closeBtn.BackgroundTransparency = 1
+		closeBtn.Text = "✕"
+		closeBtn.TextColor3 = COLORS.textMuted
+		closeBtn.Font = Enum.Font.GothamBold
+		closeBtn.TextSize = 12
+		closeBtn.ZIndex = 502
+		closeBtn.Parent = menu
 
-		mainBtn.MouseButton1Click:Connect(function()
-			toggleOpen()
+		closeBtn.MouseButton1Click:Connect(function()
+			closeAllDropdowns()
 		end)
 
-		populate()
+		local scroll = Instance.new("ScrollingFrame")
+		scroll.Name = "Scroll"
+		scroll.Size = UDim2.new(1, 0, 1, -42)
+		scroll.Position = UDim2.new(0, 0, 0, 42)
+		scroll.BackgroundTransparency = 1
+		scroll.BorderSizePixel = 0
+		scroll.ScrollBarThickness = 3
+		scroll.ScrollBarImageColor3 = COLORS.accentCyan
+		scroll.ScrollBarImageTransparency = 0.4
+		scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+		scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		scroll.ZIndex = 501
+		scroll.Parent = menu
 
-		return {
-			Frame = dropdownContainer,
-			Set = function(newOpt)
-				selected = newOpt
-				selText.Text = selected
-				populate()
-			end,
-			Get = function() return selected end,
-			Refresh = function(newOptions)
-				options = newOptions
-				listHeight = math.min(#options * 30 + 8, 140)
-				listFrame.Size = UDim2.new(1, 0, 0, listHeight)
-				populate()
-			end
-		}
-	end
+		applyListLayout(scroll, 3)
+		applyPadding(scroll, 8, 8, 4, 4)
 
-	local function addMultiDropdown(parent, labelText, options, defaultSelectedList, callback, layoutOrder)
+		local options = optionsList or {}
 		local selectedMap = {}
-		if defaultSelectedList then
-			if typeof(defaultSelectedList) == "table" then
-				for k, v in pairs(defaultSelectedList) do
-					if typeof(k) == "string" and v == true then
-						selectedMap[k] = true
-					elseif typeof(v) == "string" then
-						selectedMap[v] = true
-					end
+
+		if typeof(initialMap) == "table" then
+			for k, v in pairs(initialMap) do
+				if typeof(k) == "string" and v == true then
+					selectedMap[k] = true
+				elseif typeof(v) == "string" then
+					selectedMap[v] = true
 				end
-			elseif typeof(defaultSelectedList) == "string" then
-				selectedMap[defaultSelectedList] = true
 			end
 		end
 		if next(selectedMap) == nil then
 			selectedMap["All"] = true
 		end
 
-		local isOpen = false
-
-		local dropdownContainer = Instance.new("Frame")
-		dropdownContainer.Name = "MultiDropdown_" .. labelText
-		dropdownContainer.Size = UDim2.new(1, 0, 0, 60)
-		dropdownContainer.BackgroundTransparency = 1
-		dropdownContainer.ClipsDescendants = false
-		dropdownContainer.LayoutOrder = layoutOrder or 1
-		dropdownContainer.Parent = parent
-
-		local label = Instance.new("TextLabel")
-		label.Name = "Label"
-		label.Size = UDim2.new(1, 0, 0, 18)
-		label.BackgroundTransparency = 1
-		label.Text = labelText
-		label.TextColor3 = COLORS.textSecondary
-		label.TextSize = 11
-		label.Font = Enum.Font.GothamMedium
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.Parent = dropdownContainer
-
-		local mainBtn = Instance.new("TextButton")
-		mainBtn.Name = "MainBtn"
-		mainBtn.Size = UDim2.new(1, 0, 0, 34)
-		mainBtn.Position = UDim2.new(0, 0, 0, 22)
-		mainBtn.BackgroundColor3 = COLORS.glassSurface
-		mainBtn.BackgroundTransparency = 0.3
-		mainBtn.Text = ""
-		mainBtn.Parent = dropdownContainer
-		applyGlass(mainBtn, { corner = CORNER.small, stroke = true, strokeColor = COLORS.borderGlass, strokeTransparency = 0.7 })
-
-		local selText = Instance.new("TextLabel")
-		selText.Name = "SelectedText"
-		selText.Size = UDim2.new(1, -30, 1, 0)
-		selText.Position = UDim2.new(0, 10, 0, 0)
-		selText.BackgroundTransparency = 1
-		selText.TextColor3 = COLORS.textPrimary
-		selText.TextSize = 12
-		selText.Font = Enum.Font.GothamBold
-		selText.TextXAlignment = Enum.TextXAlignment.Left
-		selText.Parent = mainBtn
-
-		local arrow = Instance.new("TextLabel")
-		arrow.Name = "Arrow"
-		arrow.Size = UDim2.new(0, 20, 1, 0)
-		arrow.Position = UDim2.new(1, -26, 0, 0)
-		arrow.BackgroundTransparency = 1
-		arrow.Text = "▼"
-		arrow.TextColor3 = COLORS.accentCyan
-		arrow.TextSize = 10
-		arrow.Parent = mainBtn
-
 		local function getSummaryText()
-			if selectedMap["All"] then
-				return "All Selected"
-			end
-			local list = {}
+			if selectedMap["All"] then return "All Selected" end
+			local picked = {}
 			for opt, isSel in pairs(selectedMap) do
 				if isSel and opt ~= "All" then
-					table.insert(list, opt)
+					table.insert(picked, opt)
 				end
 			end
-			if #list == 0 then
-				return "None Selected"
-			elseif #list == 1 then
-				return list[1]
-			elseif #list == 2 then
-				return list[1] .. ", " .. list[2]
-			else
-				return string.format("%d Selected", #list)
+			if #picked == 0 then return "None" end
+			if #picked == 1 then return picked[1] end
+			if #picked <= 2 then return table.concat(picked, ", ") end
+			return string.format("%d Selected", #picked)
+		end
+
+		local optionButtons = {}
+		local optionIndicators = {}
+
+		local function updateOptionVisuals()
+			for _, opt in ipairs(options) do
+				local isSel = false
+				if opt == "All" then
+					isSel = (selectedMap["All"] == true)
+				else
+					isSel = (selectedMap["All"] == true) or (selectedMap[opt] == true)
+				end
+
+				local oBtn = optionButtons[opt]
+				local oInd = optionIndicators[opt]
+				if oBtn and oInd then
+					if isSel then
+						oBtn.TextColor3 = COLORS.textWhite
+						oBtn.Font = Enum.Font.GothamBold
+						oBtn.BackgroundColor3 = Color3.fromRGB(32, 42, 72)
+						oInd.Visible = true
+					else
+						oBtn.TextColor3 = COLORS.textSecondary
+						oBtn.Font = Enum.Font.GothamMedium
+						oBtn.BackgroundColor3 = Color3.fromRGB(16, 20, 36)
+						oInd.Visible = false
+					end
+				end
 			end
 		end
 
-		selText.Text = getSummaryText()
+		local function rebuildMenu()
+			scroll:ClearAllChildren()
+			table.clear(optionButtons)
+			table.clear(optionIndicators)
 
-		-- Popup List Frame
-		local listHeight = math.min(#options * 32 + 8, 150)
-		local listFrame = Instance.new("ScrollingFrame")
-		listFrame.Name = "ListFrame"
-		listFrame.Size = UDim2.new(1, 0, 0, listHeight)
-		listFrame.Position = UDim2.new(0, 0, 0, 60)
-		listFrame.BackgroundColor3 = COLORS.glassPrimary
-		listFrame.BackgroundTransparency = 0.05
-		listFrame.BorderSizePixel = 0
-		listFrame.ScrollBarThickness = 2
-		listFrame.ScrollBarImageColor3 = COLORS.accentCyan
-		listFrame.Visible = false
-		listFrame.ZIndex = 50
-		listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-		listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-		listFrame.Parent = dropdownContainer
-		applyGlass(listFrame, { corner = CORNER.small, stroke = true, strokeColor = COLORS.accentCyan, strokeTransparency = 0.5 })
+			local layout = applyListLayout(scroll, 3)
+			applyPadding(scroll, 8, 8, 4, 4)
 
-		local listLayout = Instance.new("UIListLayout")
-		listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		listLayout.Padding = UDim.new(0, 2)
-		listLayout.Parent = listFrame
-
-		local listPad = Instance.new("UIPadding")
-		listPad.PaddingTop = UDim.new(0, 4)
-		listPad.PaddingBottom = UDim.new(0, 4)
-		listPad.PaddingLeft = UDim.new(0, 4)
-		listPad.PaddingRight = UDim.new(0, 4)
-		listPad.Parent = listFrame
-
-		local function toggleOpen(open)
-			if open == nil then isOpen = not isOpen else isOpen = open end
-			listHeight = math.min(#options * 32 + 8, 150)
-			listFrame.Size = UDim2.new(1, 0, 0, listHeight)
-			if isOpen then
-				listFrame.Visible = true
-				arrow.Text = "▲"
-				tween(dropdownContainer, { Size = UDim2.new(1, 0, 0, 60 + listHeight + 6) }, 0.2)
-			else
-				arrow.Text = "▼"
-				tween(dropdownContainer, { Size = UDim2.new(1, 0, 0, 60) }, 0.2).Completed:Connect(function()
-					if not isOpen then listFrame.Visible = false end
-				end)
-			end
-		end
-
-		local function getSelectedList()
-			local out = {}
-			for opt, isSel in pairs(selectedMap) do
-				if isSel then table.insert(out, opt) end
-			end
-			return out
-		end
-
-		local function populate()
-			for _, child in ipairs(listFrame:GetChildren()) do
-				if child:IsA("TextButton") then child:Destroy() end
-			end
 			for i, opt in ipairs(options) do
-				local isSel = selectedMap[opt] == true
 				local optBtn = Instance.new("TextButton")
 				optBtn.Name = "Opt_" .. opt
 				optBtn.Size = UDim2.new(1, 0, 0, 28)
-				optBtn.BackgroundColor3 = isSel and COLORS.glassActive or COLORS.glassSurface
-				optBtn.BackgroundTransparency = 0.4
-				optBtn.Text = ""
-				optBtn.ZIndex = 51
+				optBtn.BackgroundColor3 = Color3.fromRGB(16, 20, 36)
+				optBtn.BorderSizePixel = 0
+				optBtn.Text = "     " .. opt
+				optBtn.TextColor3 = COLORS.textSecondary
+				optBtn.Font = Enum.Font.GothamMedium
+				optBtn.TextSize = 11
+				optBtn.TextXAlignment = Enum.TextXAlignment.Left
+				optBtn.ZIndex = 502
 				optBtn.LayoutOrder = i
-				optBtn.Parent = listFrame
-				applyGlass(optBtn, { corner = CORNER.small, stroke = isSel, strokeColor = COLORS.accentCyan, strokeTransparency = 0.5 })
+				optBtn.Parent = scroll
 
-				-- Checkbox box
-				local checkbox = Instance.new("Frame")
-				checkbox.Name = "Checkbox"
-				checkbox.Size = UDim2.new(0, 16, 0, 16)
-				checkbox.Position = UDim2.new(0, 8, 0.5, -8)
-				checkbox.BackgroundColor3 = isSel and COLORS.accentCyan or COLORS.toggleOff
-				checkbox.BorderSizePixel = 0
-				checkbox.Parent = optBtn
-				applyGlass(checkbox, { corner = CORNER.small })
+				local optCorner = Instance.new("UICorner")
+				optCorner.CornerRadius = UDim.new(0, 6)
+				optCorner.Parent = optBtn
 
-				local checkMark = Instance.new("TextLabel")
-				checkMark.Name = "Check"
-				checkMark.Size = UDim2.new(1, 0, 1, 0)
-				checkMark.BackgroundTransparency = 1
-				checkMark.Text = isSel and "✓" or ""
-				checkMark.TextColor3 = Color3.fromRGB(10, 18, 30)
-				checkMark.TextSize = 12
-				checkMark.Font = Enum.Font.GothamBold
-				checkMark.Parent = checkbox
+				local leftIndicator = Instance.new("Frame")
+				leftIndicator.Name = "Indicator"
+				leftIndicator.Size = UDim2.new(0, 3, 0, 16)
+				leftIndicator.Position = UDim2.new(0, 4, 0.5, -8)
+				leftIndicator.BackgroundColor3 = COLORS.accentCyan
+				leftIndicator.BorderSizePixel = 0
+				leftIndicator.Visible = false
+				leftIndicator.ZIndex = 503
+				leftIndicator.Parent = optBtn
 
-				local optLabel = Instance.new("TextLabel")
-				optLabel.Name = "OptLabel"
-				optLabel.Size = UDim2.new(1, -36, 1, 0)
-				optLabel.Position = UDim2.new(0, 32, 0, 0)
-				optLabel.BackgroundTransparency = 1
-				optLabel.Text = opt
-				optLabel.TextColor3 = isSel and COLORS.accentCyan or COLORS.textPrimary
-				optLabel.TextSize = 11
-				optLabel.Font = Enum.Font.GothamMedium
-				optLabel.TextXAlignment = Enum.TextXAlignment.Left
-				optLabel.Parent = optBtn
+				local leftCorner = Instance.new("UICorner")
+				leftCorner.CornerRadius = UDim.new(0, 2)
+				leftCorner.Parent = leftIndicator
+
+				optionButtons[opt] = optBtn
+				optionIndicators[opt] = leftIndicator
 
 				optBtn.MouseButton1Click:Connect(function()
 					if opt == "All" then
@@ -1127,22 +1421,65 @@ local success, err = pcall(function()
 					end
 
 					selText.Text = getSummaryText()
-					populate()
+					updateOptionVisuals()
 					if callback then
-						task.spawn(callback, selectedMap, getSelectedList())
+						task.spawn(callback, selectedMap)
 					end
 				end)
 			end
 		end
 
-		mainBtn.MouseButton1Click:Connect(function()
-			toggleOpen()
+		local ddData = { btn = mainBtn, menu = menu, card = card, isOpen = false, openedAt = 0 }
+		table.insert(dropdownsList, ddData)
+
+		local function toggleMenu()
+			local isOpen = ddData.isOpen
+			closeAllDropdowns()
+			if not isOpen then
+				ddData.isOpen = true
+				ddData.openedAt = tick()
+
+				local mainSize = mainFrame.AbsoluteSize
+				local menuWidth = 230
+				local menuHeight = math.clamp(mainSize.Y - 24, 280, 370)
+				local relX = mainSize.X - menuWidth - 10
+				local relY = 12
+
+				menu.Size = UDim2.new(0, menuWidth, 0, 0)
+				menu.Position = UDim2.new(0, relX, 0, relY)
+				menu.BackgroundTransparency = 1
+				menu.Visible = true
+
+				TweenService:Create(menu, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Size = UDim2.new(0, menuWidth, 0, menuHeight),
+					BackgroundTransparency = 0.05
+				}):Play()
+			end
+		end
+
+		mainBtn.MouseButton1Click:Connect(toggleMenu)
+		fullClick.MouseButton1Click:Connect(toggleMenu)
+
+		search:GetPropertyChangedSignal("Text"):Connect(function()
+			local query = search.Text:lower():gsub("%s+", "")
+			for _, opt in ipairs(options) do
+				local oBtn = optionButtons[opt]
+				if oBtn then
+					if query == "" or opt:lower():gsub("%s+", ""):find(query, 1, true) then
+						oBtn.Visible = true
+					else
+						oBtn.Visible = false
+					end
+				end
+			end
 		end)
 
-		populate()
+		rebuildMenu()
+		selText.Text = getSummaryText()
+		updateOptionVisuals()
 
 		return {
-			Frame = dropdownContainer,
+			Frame = card,
 			Set = function(newMap)
 				selectedMap = {}
 				if typeof(newMap) == "table" then
@@ -1156,28 +1493,31 @@ local success, err = pcall(function()
 				end
 				if next(selectedMap) == nil then selectedMap["All"] = true end
 				selText.Text = getSummaryText()
-				populate()
+				updateOptionVisuals()
 			end,
-			Get = function() return selectedMap end,
-			GetList = getSelectedList,
-			Refresh = function(newOptions)
-				options = newOptions
-				listHeight = math.min(#options * 32 + 8, 150)
-				listFrame.Size = UDim2.new(1, 0, 0, listHeight)
-				populate()
-			end
+			Get = function() return selectedMap end
 		}
 	end
 
+	------------------------------------------------
+	-- 📊 STAT CARD COMPONENT
+	------------------------------------------------
 	local function addStatCard(parent, title, initialVal, layoutOrder)
 		local card = Instance.new("Frame")
 		card.Name = "Stat_" .. title
-		card.Size = UDim2.new(1, 0, 0, 42)
+		card.Size = UDim2.new(1, 0, 0, 36)
 		card.BackgroundColor3 = COLORS.glassSurface
 		card.BackgroundTransparency = 0.4
 		card.LayoutOrder = layoutOrder or 1
+		card.ZIndex = 2
 		card.Parent = parent
-		applyGlass(card, { corner = CORNER.small, stroke = true, strokeColor = COLORS.borderGlass, strokeTransparency = 0.8 })
+
+		applyGlass(card, {
+			corner = CORNER.small,
+			stroke = true,
+			strokeColor = COLORS.borderGlass,
+			strokeTransparency = 0.8
+		})
 
 		local titleLbl = Instance.new("TextLabel")
 		titleLbl.Name = "Title"
@@ -1189,6 +1529,7 @@ local success, err = pcall(function()
 		titleLbl.TextSize = 11
 		titleLbl.Font = Enum.Font.GothamMedium
 		titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+		titleLbl.ZIndex = 3
 		titleLbl.Parent = card
 
 		local valLbl = Instance.new("TextLabel")
@@ -1201,6 +1542,7 @@ local success, err = pcall(function()
 		valLbl.TextSize = 12
 		valLbl.Font = Enum.Font.GothamBold
 		valLbl.TextXAlignment = Enum.TextXAlignment.Right
+		valLbl.ZIndex = 3
 		valLbl.Parent = card
 
 		return {
@@ -1212,15 +1554,142 @@ local success, err = pcall(function()
 	end
 
 	------------------------------------------------
-	-- 🚀 BUILD CORE TABS (WITHOUT EMOJIS)
+	-- 🖱️ WINDOW DRAGGING & RESIZING
 	------------------------------------------------
-	createTab("Training", nil, 1)
-	createTab("Farming", nil, 2)
-	createTab("Shops", nil, 3)
-	createTab("Defense", nil, 4)
-	createTab("Movement", nil, 5)
-	createTab("Visuals", nil, 6)
-	createTab("Settings", nil, 7)
+	local dragging, dragInput, dragStart, startPos
+
+	local function updateDrag(input)
+		local delta = input.Position - dragStart
+		mainFrame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+		syncShadow()
+	end
+
+	topBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = mainFrame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	topBar.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			updateDrag(input)
+		end
+	end)
+
+	-- Minimize & Close actions
+	local isMinimized = false
+	minimizeButton.MouseButton1Click:Connect(function()
+		isMinimized = not isMinimized
+		if isMinimized then
+			mainFrame.ClipsDescendants = true
+			TweenService:Create(mainFrame, TweenInfo.new(0.25), { Size = UDim2.new(0, 600, 0, 42) }):Play()
+			minimizeButton.Text = "+"
+		else
+			TweenService:Create(mainFrame, TweenInfo.new(0.25), { Size = UDim2.new(0, 600, 0, 410) }):Play()
+			minimizeButton.Text = "-"
+		end
+		task.delay(0.26, syncShadow)
+	end)
+
+	closeButton.MouseButton1Click:Connect(function()
+		mainFrame.Visible = false
+		syncShadow()
+	end)
+
+	-- Interactive Resize Handle
+	local resizeHandle = Instance.new("TextButton")
+	resizeHandle.Name = "ResizeHandle"
+	resizeHandle.Size = UDim2.new(0, 18, 0, 18)
+	resizeHandle.Position = UDim2.new(1, -18, 1, -18)
+	resizeHandle.BackgroundTransparency = 1
+	resizeHandle.Text = "⋱"
+	resizeHandle.TextColor3 = COLORS.textMuted
+	resizeHandle.Font = Enum.Font.GothamBold
+	resizeHandle.TextSize = 14
+	resizeHandle.ZIndex = 10
+	resizeHandle.Parent = mainFrame
+
+	local resizing = false
+	local resizeStartPos, resizeStartSize
+
+	resizeHandle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			resizing = true
+			resizeStartPos = input.Position
+			resizeStartSize = mainFrame.AbsoluteSize
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					resizing = false
+				end
+			end)
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - resizeStartPos
+			local newW = math.clamp(resizeStartSize.X + delta.X, 480, 850)
+			local newH = math.clamp(resizeStartSize.Y + delta.Y, 320, 600)
+			mainFrame.Size = UDim2.new(0, newW, 0, newH)
+			syncShadow()
+		end
+	end)
+
+	-- Close dropdowns when clicking outside
+	UserInputService.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			local mousePos = UserInputService:GetMouseLocation()
+			local inset = GuiService:GetGuiInset()
+			local actualMousePos = mousePos - inset
+			local function inBounds(guiObj)
+				if not guiObj or not guiObj.Visible then return false end
+				local pos = guiObj.AbsolutePosition
+				local size = guiObj.AbsoluteSize
+				return actualMousePos.X >= pos.X and actualMousePos.X <= pos.X + size.X and
+					actualMousePos.Y >= pos.Y and actualMousePos.Y <= pos.Y + size.Y
+			end
+			local clickedInsideAny = false
+			for _, dd in ipairs(dropdownsList) do
+				if dd.isOpen then
+					if (tick() - (dd.openedAt or 0)) < 0.25 then
+						clickedInsideAny = true
+					elseif inBounds(dd.menu) or inBounds(dd.btn) or (dd.card and inBounds(dd.card)) then
+						clickedInsideAny = true
+					end
+				end
+			end
+			if not clickedInsideAny then
+				closeAllDropdowns()
+			end
+		end
+	end)
+
+	------------------------------------------------
+	-- 🚀 BUILD CORE TABS
+	------------------------------------------------
+	addTab("Training", "", 1)
+	addTab("Farming", "", 2)
+	addTab("Shops", "", 3)
+	addTab("Defense", "", 4)
+	addTab("Movement", "", 5)
+	addTab("Visuals", "", 6)
+	addTab("Settings", "", 7)
 
 	selectTab("Training")
 
@@ -1229,7 +1698,8 @@ local success, err = pcall(function()
 	------------------------------------------------
 	local env = (getgenv and getgenv()) or _G
 	local uiTable = {
-		screenGui = screenGui,
+		gui = gui,
+		screenGui = gui,
 		mainFrame = mainFrame,
 		topBar = topBar,
 		sidebar = sidebar,
@@ -1237,30 +1707,84 @@ local success, err = pcall(function()
 		tabs = tabs,
 		closeButton = closeButton,
 		minimizeButton = minimizeButton,
-		statusDot = statusDot,
-		statusText = statusText,
+		fullscreenButton = fullscreenButton,
+		profileCard = profileCard,
+		usernameLabel = usernameLabel,
+		avatarLabel = avatarLabel,
 		SyncShadow = syncShadow,
 		Colors = COLORS,
 		-- API Component Functions
-		CreateTab = createTab,
-		AddSection = addSection,
-		AddToggle = addToggle,
-		AddButton = addButton,
+		AddTab = addTab,
+		CreateTab = addTab,
+		AddSection = createCollapsibleSection,
+		AddToggle = createGlassToggle,
+		AddButton = createGlassButton,
 		AddSlider = addSlider,
-		AddDropdown = addDropdown,
 		AddMultiDropdown = addMultiDropdown,
+		AddDropdown = addMultiDropdown,
 		AddStatCard = addStatCard,
 		SelectTab = selectTab,
-		Tween = tween
+		Tween = tween,
+		UpdateFullscreenIcon = updateFullscreenIcon
 	}
 
 	env.HipHubUI = uiTable
 	_G.HipHubUI = uiTable
 	if shared then shared.HipHubUI = uiTable end
 
-	print("[HipHub JFA UI] Initialized successfully.")
+	print("[HipHub JFA UI] Initialized successfully with Liquid Glass futuristic architecture.")
 end)
 
 if not success then
-	warn("[HipHub JFA UI Error]: " .. tostring(err))
+	warn("HipHub UI Init Error: " .. tostring(err))
+	local errGui = Instance.new("ScreenGui")
+	errGui.Name = "HipHubError"
+	errGui.ResetOnSpawn = false
+	errGui.DisplayOrder = 2147483647
+
+	pcall(function()
+		errGui.Parent = player:WaitForChild("PlayerGui")
+
+		local frame = Instance.new("Frame")
+		frame.Size = UDim2.new(0, 480, 0, 160)
+		frame.Position = UDim2.new(0.5, -240, 0.5, -80)
+		frame.BackgroundColor3 = Color3.fromRGB(16, 8, 8)
+		frame.BackgroundTransparency = 0.1
+		frame.BorderSizePixel = 0
+		frame.Parent = errGui
+
+		local errCorner = Instance.new("UICorner")
+		errCorner.CornerRadius = UDim.new(0, 14)
+		errCorner.Parent = frame
+
+		local errStroke = Instance.new("UIStroke")
+		errStroke.Color = Color3.fromRGB(255, 60, 60)
+		errStroke.Thickness = 1
+		errStroke.Transparency = 0.5
+		errStroke.Parent = frame
+
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, -20, 0, 30)
+		title.Position = UDim2.new(0, 10, 0, 10)
+		title.BackgroundTransparency = 1
+		title.Text = "HipHub UI Init Error"
+		title.TextColor3 = Color3.fromRGB(255, 80, 80)
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 14
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.Parent = frame
+
+		local body = Instance.new("TextLabel")
+		body.Size = UDim2.new(1, -20, 1, -50)
+		body.Position = UDim2.new(0, 10, 0, 40)
+		body.BackgroundTransparency = 1
+		body.Text = tostring(err)
+		body.TextColor3 = Color3.fromRGB(200, 180, 180)
+		body.Font = Enum.Font.Gotham
+		body.TextSize = 12
+		body.TextWrapped = true
+		body.TextXAlignment = Enum.TextXAlignment.Left
+		body.TextYAlignment = Enum.TextYAlignment.Top
+		body.Parent = frame
+	end)
 end
