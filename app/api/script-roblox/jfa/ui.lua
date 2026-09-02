@@ -398,23 +398,14 @@ local success, err = pcall(function()
 		indicator.Parent = tabBtn
 		applyGlass(indicator, { corner = CORNER.pill })
 
-		local iconLabel = Instance.new("TextLabel")
-		iconLabel.Name = "Icon"
-		iconLabel.Size = UDim2.new(0, 24, 1, 0)
-		iconLabel.Position = UDim2.new(0, 12, 0, 0)
-		iconLabel.BackgroundTransparency = 1
-		iconLabel.Text = icon or "⚡"
-		iconLabel.TextSize = 16
-		iconLabel.Parent = tabBtn
-
 		local textLabel = Instance.new("TextLabel")
 		textLabel.Name = "Label"
-		textLabel.Size = UDim2.new(1, -44, 1, 0)
-		textLabel.Position = UDim2.new(0, 40, 0, 0)
+		textLabel.Size = UDim2.new(1, -24, 1, 0)
+		textLabel.Position = UDim2.new(0, 16, 0, 0)
 		textLabel.BackgroundTransparency = 1
 		textLabel.Text = name
 		textLabel.TextColor3 = COLORS.textSecondary
-		textLabel.TextSize = 12
+		textLabel.TextSize = 13
 		textLabel.Font = Enum.Font.GothamBold
 		textLabel.TextXAlignment = Enum.TextXAlignment.Left
 		textLabel.Parent = tabBtn
@@ -714,6 +705,7 @@ local success, err = pcall(function()
 		dropdownContainer.Name = "Dropdown_" .. labelText
 		dropdownContainer.Size = UDim2.new(1, 0, 0, 60)
 		dropdownContainer.BackgroundTransparency = 1
+		dropdownContainer.ClipsDescendants = false
 		dropdownContainer.LayoutOrder = layoutOrder or 1
 		dropdownContainer.Parent = parent
 
@@ -761,9 +753,10 @@ local success, err = pcall(function()
 		arrow.Parent = mainBtn
 
 		-- Popup List Frame
+		local listHeight = math.min(#options * 30 + 8, 140)
 		local listFrame = Instance.new("ScrollingFrame")
 		listFrame.Name = "ListFrame"
-		listFrame.Size = UDim2.new(1, 0, 0, math.min(#options * 30 + 8, 150))
+		listFrame.Size = UDim2.new(1, 0, 0, listHeight)
 		listFrame.Position = UDim2.new(0, 0, 0, 60)
 		listFrame.BackgroundColor3 = COLORS.glassPrimary
 		listFrame.BackgroundTransparency = 0.05
@@ -789,6 +782,28 @@ local success, err = pcall(function()
 		listPad.PaddingRight = UDim.new(0, 4)
 		listPad.Parent = listFrame
 
+		local function toggleOpen(open)
+			if open == nil then
+				isOpen = not isOpen
+			else
+				isOpen = open
+			end
+			listHeight = math.min(#options * 30 + 8, 140)
+			listFrame.Size = UDim2.new(1, 0, 0, listHeight)
+			if isOpen then
+				listFrame.Visible = true
+				arrow.Text = "▲"
+				tween(dropdownContainer, { Size = UDim2.new(1, 0, 0, 60 + listHeight + 6) }, 0.2)
+			else
+				arrow.Text = "▼"
+				tween(dropdownContainer, { Size = UDim2.new(1, 0, 0, 60) }, 0.2).Completed:Connect(function()
+					if not isOpen then
+						listFrame.Visible = false
+					end
+				end)
+			end
+		end
+
 		local function populate()
 			for _, child in ipairs(listFrame:GetChildren()) do
 				if child:IsA("TextButton") then child:Destroy() end
@@ -811,9 +826,7 @@ local success, err = pcall(function()
 				optBtn.MouseButton1Click:Connect(function()
 					selected = opt
 					selText.Text = selected
-					isOpen = false
-					listFrame.Visible = false
-					arrow.Text = "▼"
+					toggleOpen(false)
 					populate()
 					if callback then
 						task.spawn(callback, selected)
@@ -823,9 +836,7 @@ local success, err = pcall(function()
 		end
 
 		mainBtn.MouseButton1Click:Connect(function()
-			isOpen = not isOpen
-			listFrame.Visible = isOpen
-			arrow.Text = isOpen and "▲" or "▼"
+			toggleOpen()
 		end)
 
 		populate()
@@ -840,6 +851,8 @@ local success, err = pcall(function()
 			Get = function() return selected end,
 			Refresh = function(newOptions)
 				options = newOptions
+				listHeight = math.min(#options * 30 + 8, 140)
+				listFrame.Size = UDim2.new(1, 0, 0, listHeight)
 				populate()
 			end
 		}
@@ -890,13 +903,13 @@ local success, err = pcall(function()
 	------------------------------------------------
 	-- 🚀 BUILD CORE TABS
 	------------------------------------------------
-	createTab("Training", "🏋️‍♂️", 1)
-	createTab("Farming", "🥚", 2)
-	createTab("Shops", "🛒", 3)
-	createTab("Defense", "🛡️", 4)
-	createTab("Movement", "⚡", 5)
-	createTab("Visuals", "👁️", 6)
-	createTab("Settings", "⚙️", 7)
+	createTab("Training", nil, 1)
+	createTab("Farming", nil, 2)
+	createTab("Shops", nil, 3)
+	createTab("Defense", nil, 4)
+	createTab("Movement", nil, 5)
+	createTab("Visuals", nil, 6)
+	createTab("Settings", nil, 7)
 
 	selectTab("Training")
 
