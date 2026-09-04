@@ -309,15 +309,10 @@ do
 ${settingsLua}
 end
 
--- [Module 3: Features & Automation Engine]
-do
+-- [Module 3 & 4: Features & Main Controller Engine]
 ${featuresLua}
-end
 
--- [Module 4: Main Controller Engine]
-do
 ${mainLua}
-end
 `;
 
     if (isRaw) {

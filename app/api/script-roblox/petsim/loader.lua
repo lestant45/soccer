@@ -29,7 +29,11 @@ local function loadAll()
 	local chunks = {}
 	for _, file in ipairs(MODULE_FILES) do
 		local content = loadScriptFile(file)
-		table.insert(chunks, "do\n" .. content .. "\nend")
+		if file == "ui.lua" or file == "settings.lua" then
+			table.insert(chunks, "do\n" .. content .. "\nend")
+		else
+			table.insert(chunks, content)
+		end
 		debugLog("Loaded " .. file)
 	end
 
