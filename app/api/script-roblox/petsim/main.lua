@@ -162,6 +162,40 @@ WorldGroup:AddToggle({
 })
 
 WorldGroup:AddToggle({
+    Name = "Auto Buy Area Upgrades",
+    Default = true,
+    Callback = function(state)
+        getgenv().autoWorldConfig.AUTO_BUY_UPGRADES = state
+    end
+})
+
+WorldGroup:AddToggle({
+    Name = "Auto Hatch Latest Zone Egg",
+    Default = true,
+    Callback = function(state)
+        getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG = state
+    end
+})
+
+WorldGroup:AddToggle({
+    Name = "Move To Breakables",
+    Default = true,
+    Callback = function(state)
+        getgenv().autoWorldConfig.MOVE_TO_BREAKABLES = state
+        getgenv().breakableFarmConfig.MOVE_TO_BREAKABLES = state
+    end
+})
+
+WorldGroup:AddToggle({
+    Name = "Click Breakables",
+    Default = true,
+    Callback = function(state)
+        getgenv().autoWorldConfig.CLICK_BREAKABLES = state
+        getgenv().breakableFarmConfig.CLICK_BREAKABLES = state
+    end
+})
+
+WorldGroup:AddToggle({
     Name = "Auto Farm Chests",
     Default = false,
     Callback = function(state)

@@ -721,6 +721,12 @@ getgenv().autoWorldConfig = getgenv().autoWorldConfig or {}
 setDefault(getgenv().autoWorldConfig, "PURCHASE_CHECK_DELAY", 1)
 setDefault(getgenv().autoWorldConfig, "ZONE_TO_REACH", 999)
 setDefault(getgenv().autoWorldConfig, "AUTO_REBIRTH", false)
+setDefault(getgenv().autoWorldConfig, "AUTO_BUY_UPGRADES", true)
+setDefault(getgenv().autoWorldConfig, "AUTO_HATCH_ZONE_EGG", true)
+setDefault(getgenv().autoWorldConfig, "MOVE_TO_BREAKABLES", true)
+setDefault(getgenv().autoWorldConfig, "CLICK_BREAKABLES", true)
+setDefault(getgenv().autoWorldConfig, "SWEEP_ORBS", true)
+setDefault(getgenv().autoWorldConfig, "TELEPORT_INTERVAL", 1.2)
 
 getgenv().autoStageFarmConfig = getgenv().autoStageFarmConfig or {}
 setDefault(getgenv().autoStageFarmConfig, "MOVE_DELAY", 0.75)
@@ -786,7 +792,10 @@ setDefault(getgenv().breakableFarmConfig, "METHOD", "Best Area")
 setDefault(getgenv().breakableFarmConfig, "ZONE", "")
 setDefault(getgenv().breakableFarmConfig, "FILTERS", { "Any" })
 setDefault(getgenv().breakableFarmConfig, "REPOSITION_INTERVAL", 8)
-setDefault(getgenv().breakableFarmConfig, "TELEPORT_INTERVAL", 5)
+setDefault(getgenv().breakableFarmConfig, "TELEPORT_INTERVAL", 1.2)
+setDefault(getgenv().breakableFarmConfig, "MOVE_TO_BREAKABLES", true)
+setDefault(getgenv().breakableFarmConfig, "CLICK_BREAKABLES", true)
+setDefault(getgenv().breakableFarmConfig, "SWEEP_ORBS", true)
 
 getgenv().autoRNGConfig = getgenv().autoRNGConfig or {}
 setDefault(getgenv().autoRNGConfig, "DELAY", 0.2)
@@ -5550,15 +5559,22 @@ function teleportToBreakable(breakable)
         return false
     end
 
-    getHumanoidRootPart().CFrame = targetCFrame + Vector3.new(0, 8, 0)
+    local hrp = getHumanoidRootPart()
+    if hrp then
+        hrp.CFrame = targetCFrame + Vector3.new(0, 3, 0)
+    end
     return true
 end
 
 function firePrimaryClick()
     pcall(function()
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-        task.wait(0.02)
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+        local cam = Workspace.CurrentCamera
+        local vp = cam and cam.ViewportSize or Vector2.new(800, 600)
+        local cx = math.floor(vp.X / 2)
+        local cy = math.floor(vp.Y / 2)
+        VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, true, game, 0)
+        task.wait(0.015)
+        VirtualInputManager:SendMouseButtonEvent(cx, cy, 0, false, game, 0)
     end)
 end
 
@@ -5574,18 +5590,20 @@ function damageBreakable(breakable)
 
     setEquippedPetsTarget(targetId)
 
-    pcall(function()
-        local clientNet = require(Library.Client.Network)
-        if clientNet and clientNet.Fire then
-            clientNet.Fire("Breakables_PlayerDealDamage", targetId)
-        end
-    end)
-    pcall(function()
-        local remote = Network:FindFirstChild("Breakables_PlayerDealDamage")
-        if remote then
-            remote:FireServer(targetId)
-        end
-    end)
+    for _ = 1, 2 do
+        pcall(function()
+            local clientNet = require(Library.Client.Network)
+            if clientNet and clientNet.Fire then
+                clientNet.Fire("Breakables_PlayerDealDamage", targetId)
+            end
+        end)
+        pcall(function()
+            local remote = Network:FindFirstChild("Breakables_PlayerDealDamage")
+            if remote then
+                remote:FireServer(targetId)
+            end
+        end)
+    end
 
     firePrimaryClick()
     return true
@@ -5603,21 +5621,153 @@ function damageBreakableByName(breakable)
 
     setEquippedPetsTarget(targetName)
 
-    pcall(function()
-        local clientNet = require(Library.Client.Network)
-        if clientNet and clientNet.Fire then
-            clientNet.Fire("Breakables_PlayerDealDamage", targetName)
-        end
-    end)
-    pcall(function()
-        local remote = Network:FindFirstChild("Breakables_PlayerDealDamage")
-        if remote then
-            remote:FireServer(targetName)
-        end
-    end)
+    for _ = 1, 2 do
+        pcall(function()
+            local clientNet = require(Library.Client.Network)
+            if clientNet and clientNet.Fire then
+                clientNet.Fire("Breakables_PlayerDealDamage", targetName)
+            end
+        end)
+        pcall(function()
+            local remote = Network:FindFirstChild("Breakables_PlayerDealDamage")
+            if remote then
+                remote:FireServer(targetName)
+            end
+        end)
+    end
 
     firePrimaryClick()
     return true
+end
+
+function sweepNearbyOrbs(maxDistance)
+    pcall(function()
+        local hrp = getHumanoidRootPart()
+        if not hrp then return end
+        local things = Workspace:FindFirstChild("__THINGS")
+        local orbsFolder = things and things:FindFirstChild("Orbs")
+        if not orbsFolder then return end
+
+        local charPos = hrp.Position
+        local count = 0
+        for _, orb in ipairs(orbsFolder:GetChildren()) do
+            if orb:IsA("BasePart") then
+                local dist = (charPos - orb.Position).Magnitude
+                if dist <= (maxDistance or 120) and dist > 15 then
+                    hrp.CFrame = orb.CFrame + Vector3.new(0, 1.5, 0)
+                    task.wait(0.03)
+                    count = count + 1
+                    if count >= 6 then break end
+                end
+            end
+        end
+    end)
+end
+
+function autoBuyAreaUpgrades()
+    local ok = pcall(function()
+        local upgradeCmds = require(Library.Client.UpgradeCmds)
+        local currencyCmds = require(Library.Client.CurrencyCmds)
+        local directory = require(Library.Directory)
+
+        local diamonds = currencyCmds.Get("Diamonds") or 0
+        if diamonds <= 0 then return end
+
+        local all = upgradeCmds.All()
+        if not all or #all == 0 then return end
+
+        local hrp = getHumanoidRootPart()
+        if not hrp then return end
+
+        for _, upg in ipairs(all) do
+            if upg.Model and upgradeCmds.CanInteractWith(upg.UpgradeID, upg.ZoneID) then
+                local dirInfo = directory.Upgrades[upg.UpgradeID]
+                local cost = (dirInfo and dirInfo.TierCosts and dirInfo.TierCosts[upg.UpgradeTier]) or 0
+                if diamonds >= cost and cost > 0 then
+                    local origCFrame = hrp.CFrame
+                    local padPivot = upg.Model:GetPivot()
+                    hrp.CFrame = padPivot + Vector3.new(0, 3, 0)
+                    task.wait(0.25)
+                    local bought = upgradeCmds.Purchase(upg.UpgradeID, upg.ZoneID)
+                    task.wait(0.15)
+                    hrp.CFrame = origCFrame
+                    if bought then
+                        print(string.format("[Auto Farm] Purchased Upgrade: %s Tier %s in %s (%s Diamonds)", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID), tostring(cost)))
+                        notifyFlow("Upgrade Purchased", string.format("%s (%s) in %s", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID)), 3)
+                        diamonds = currencyCmds.Get("Diamonds") or 0
+                    end
+                    task.wait(0.1)
+                end
+            end
+        end
+    end)
+    return ok
+end
+
+function autoUnlockAndHatchZoneEgg()
+    local ok = pcall(function()
+        local eggCmds = require(Library.Client.EggCmds)
+        local eggsUtil = require(Library.Util.EggsUtil)
+        local currencyCmds = require(Library.Client.CurrencyCmds)
+        local directory = require(Library.Directory)
+        local calcEggPrice = require(Library.Balancing.CalcEggPrice)
+
+        local maxEggNum = eggCmds.GetHighestEggNumberAvailable()
+        if not maxEggNum or maxEggNum <= 0 then return end
+
+        local eggId = eggsUtil.GetIdByNumber(maxEggNum)
+        if not eggId then return end
+
+        local eggData = directory.Eggs[eggId]
+        if not eggData then return end
+
+        -- 1. Unlock egg if locked
+        if eggCmds.IsEggLocked(eggId) then
+            local unlocked = eggCmds.RequestUnlock(eggId)
+            if unlocked then
+                print(string.format("[Auto Farm] Unlocked Egg #%d (%s)!", maxEggNum, tostring(eggId)))
+                notifyFlow("Egg Unlocked", string.format("Unlocked Egg #%d: %s", maxEggNum, tostring(eggId)), 3)
+                task.wait(0.3)
+            end
+        end
+
+        -- 2. Hatch egg if affordable
+        if eggCmds.IsUnlocked(eggId) then
+            local eggPrice = 0
+            pcall(function()
+                eggPrice = calcEggPrice(eggData) or 0
+            end)
+
+            local currentCoins = currencyCmds.Get("Coins") or 0
+            if currentCoins >= eggPrice and eggPrice > 0 then
+                local things = Workspace:FindFirstChild("__THINGS")
+                local eggsFolder = things and things:FindFirstChild("Eggs") and things.Eggs:FindFirstChild("Main")
+                local capsule = eggsFolder and eggsFolder:FindFirstChild(tostring(maxEggNum) .. " - Egg Capsule")
+
+                local hrp = getHumanoidRootPart()
+                if hrp and capsule then
+                    local origCFrame = hrp.CFrame
+                    hrp.CFrame = capsule:GetPivot() + Vector3.new(0, 3, 0)
+                    task.wait(0.25)
+
+                    local hatchCount = 1
+                    local maxHatch = pcall(function() return eggCmds.GetMaxHatch() end) and eggCmds.GetMaxHatch() or 1
+                    if currentCoins >= eggPrice * maxHatch * 3 then
+                        hatchCount = maxHatch
+                    end
+
+                    local bought = eggCmds.RequestPurchase(eggId, hatchCount)
+                    task.wait(0.2)
+                    hrp.CFrame = origCFrame
+                    if bought then
+                        print(string.format("[Auto Farm] Hatched %d x Egg #%d (%s)!", hatchCount, maxEggNum, tostring(eggId)))
+                        notifyFlow("Egg Hatched", string.format("Hatched %d x %s", hatchCount, tostring(eggId)), 3)
+                    end
+                end
+            end
+        end
+    end)
+    return ok
 end
 
 function teleportToRandomQuestBreakable(questTask, zoneInfo)
@@ -6102,7 +6252,7 @@ function runAutoWorldFarm()
     local rebirthZone = nextRebirthData and nextRebirthData.ZoneNumberRequired
 
     local function isRunning()
-        return autoWorldFarmRunning and not getgenv().STAFF_DETECTED
+        return (autoWorldFarmRunning or getgenv().autoWorldFarmRunning) and not getgenv().STAFF_DETECTED
     end
 
     local function teleportToOwnedZone(forceMove)
@@ -6146,6 +6296,11 @@ function runAutoWorldFarm()
     end
 
     teleportToOwnedZone(true)
+
+    local lastTeleportAt = 0
+    local lastUpgradeCheckAt = 0
+    local lastEggCheckAt = 0
+    local lastOrbSweepAt = 0
 
     while isRunning() do
         local maxOk, zoneName, maxZoneData = pcall(zoneCmds.GetMaxOwnedZone)
@@ -6208,11 +6363,31 @@ function runAutoWorldFarm()
                 end
 
                 teleportToOwnedZone(true)
+                if getgenv().autoWorldConfig.AUTO_BUY_UPGRADES ~= false then
+                    autoBuyAreaUpgrades()
+                end
+                if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false then
+                    autoUnlockAndHatchZoneEgg()
+                end
             else
                 teleportToOwnedZone(false)
             end
         else
             teleportToOwnedZone(false)
+        end
+
+        local now = os.clock()
+        if getgenv().autoWorldConfig.AUTO_BUY_UPGRADES ~= false and now - lastUpgradeCheckAt >= 15 then
+            lastUpgradeCheckAt = now
+            autoBuyAreaUpgrades()
+        end
+        if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false and now - lastEggCheckAt >= 15 then
+            lastEggCheckAt = now
+            autoUnlockAndHatchZoneEgg()
+        end
+        if getgenv().autoWorldConfig.SWEEP_ORBS ~= false and now - lastOrbSweepAt >= 6 then
+            lastOrbSweepAt = now
+            sweepNearbyOrbs(100)
         end
 
         local bestZone = getLatestUnlockedBestArea()
@@ -6221,9 +6396,15 @@ function runAutoWorldFarm()
             if #matches > 0 then
                 local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
                 if choice and choice:IsA("Instance") then
-                    local id = choice:GetAttribute("BreakableId") or choice.Name
+                    local id = choice:GetAttribute("BreakableUID") or choice:GetAttribute("BreakableId") or choice.Name
                     setEquippedPetsTarget(id)
-                    damageBreakable(choice)
+                    if getgenv().autoWorldConfig.MOVE_TO_BREAKABLES ~= false and now - lastTeleportAt >= (getgenv().autoWorldConfig.TELEPORT_INTERVAL or 1.2) then
+                        teleportToBreakable(choice)
+                        lastTeleportAt = now
+                    end
+                    if getgenv().autoWorldConfig.CLICK_BREAKABLES ~= false then
+                        damageBreakable(choice)
+                    end
                 end
             else
                 pokeNearestBestAreaBreakable(bestZone)
@@ -6273,16 +6454,32 @@ function runCurrentStageFarm()
     end
 
     local lastTeleportAt = 0
-    while autoCurrentStageFarmRunning and not getgenv().STAFF_DETECTED do
+    local lastUpgradeCheckAt = 0
+    local lastEggCheckAt = 0
+    local lastOrbSweepAt = 0
+    while (autoCurrentStageFarmRunning or getgenv().autoCurrentStageFarmRunning) and not getgenv().STAFF_DETECTED do
+        local now = os.clock()
+        if getgenv().autoWorldConfig.AUTO_BUY_UPGRADES ~= false and now - lastUpgradeCheckAt >= 15 then
+            lastUpgradeCheckAt = now
+            autoBuyAreaUpgrades()
+        end
+        if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false and now - lastEggCheckAt >= 15 then
+            lastEggCheckAt = now
+            autoUnlockAndHatchZoneEgg()
+        end
+        if getgenv().autoWorldConfig.SWEEP_ORBS ~= false and now - lastOrbSweepAt >= 6 then
+            lastOrbSweepAt = now
+            sweepNearbyOrbs(100)
+        end
+
         local activeZone = latestZone or { Name = zoneName, FullName = zonePath.Name, Path = zonePath }
         local matches = getBreakableFarmMatchingBreakables(activeZone, { "Any" })
         if #matches > 0 then
-            local now = os.clock()
             local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
             if choice and choice:IsA("Instance") then
-                local id = choice:GetAttribute("BreakableId") or choice.Name
+                local id = choice:GetAttribute("BreakableUID") or choice:GetAttribute("BreakableId") or choice.Name
                 setEquippedPetsTarget(id)
-                if now - lastTeleportAt >= getgenv().breakableFarmConfig.TELEPORT_INTERVAL then
+                if now - lastTeleportAt >= (getgenv().breakableFarmConfig.TELEPORT_INTERVAL or 1.2) then
                     teleportToBreakable(choice)
                     lastTeleportAt = now
                 end
@@ -12239,7 +12436,7 @@ function runAutoBreakableFarm()
     local lastTeleportAt = 0
     local activeZoneName
 
-    while autoBreakableFarmRunning and not getgenv().STAFF_DETECTED do
+    while (autoBreakableFarmRunning or getgenv().autoBreakableFarmRunning) and not getgenv().STAFF_DETECTED do
         local zoneInfo
         if selectedBreakableFarmMethod == "Selected Zone"
             and selectedBreakableFarmZone == BREAKABLE_FARM_RANDOM_ZONE
@@ -12272,10 +12469,20 @@ function runAutoBreakableFarm()
             ))
         end
 
+        local now = os.clock()
+        if getgenv().autoWorldConfig.AUTO_BUY_UPGRADES ~= false and now - lastTeleportAt >= 15 then
+            autoBuyAreaUpgrades()
+        end
+        if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false and now - lastTeleportAt >= 15 then
+            autoUnlockAndHatchZoneEgg()
+        end
+        if getgenv().breakableFarmConfig.SWEEP_ORBS ~= false and now - lastTeleportAt >= 6 then
+            sweepNearbyOrbs(100)
+        end
+
         local matches = getBreakableFarmMatchingBreakables(zoneInfo, selectedBreakableFarmFilters)
         if #matches > 0 then
-            local now = os.clock()
-            if now - lastTeleportAt >= getgenv().breakableFarmConfig.TELEPORT_INTERVAL then
+            if now - lastTeleportAt >= (getgenv().breakableFarmConfig.TELEPORT_INTERVAL or 1.2) then
                 teleportToBreakable(matches[BREAKABLE_RANDOM:NextInteger(1, #matches)])
                 lastTeleportAt = now
             end
