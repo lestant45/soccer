@@ -4,41 +4,8 @@
 -- ==============================================================================
 
 
-repeat task.wait() until game:IsLoaded()
+-- Lifecycle management and generation are initialized in features.lua
 
-if setthreadidentity then
-    pcall(setthreadidentity, 8)
-end
-
-
-
-
-if getgenv then
-    if getgenv().FlowPS99Unload then
-        local prevUnload = getgenv().FlowPS99Unload
-        getgenv().FlowPS99Unload = nil
-        task.spawn(function() pcall(prevUnload) end)
-    end
-    local prevWindow = getgenv().HipHubUI_Window
-    getgenv().HipHubUI_Window = nil
-    if prevWindow then
-        task.spawn(function()
-            pcall(function()
-                if type(prevWindow.Destroy) == "function" then
-                    prevWindow:Destroy()
-                elseif type(prevWindow.Close) == "function" then
-                    prevWindow:Close()
-                end
-            end)
-        end)
-    end
-    getgenv().FlowPS99LoadedAt = os.clock()
-end
-
-
-
-if getgenv then getgenv().FlowPS99Generation = (tonumber(getgenv().FlowPS99Generation) or 0) + 1 end
-local flowSessionGeneration = (getgenv and getgenv().FlowPS99Generation) or 1
 
 
 

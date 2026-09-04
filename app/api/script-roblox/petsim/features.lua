@@ -2,8 +2,34 @@
 -- 🐾 HipHub Features Engine — Pet Simulator 99 Complete Automation
 -- Full Automation Engine, Discovery Caches, Remotes & Workers
 -- ==============================================================================
+repeat task.wait() until game:IsLoaded()
 
-if getgenv then getgenv().FlowPS99Generation = (tonumber(getgenv().FlowPS99Generation) or 0) + 1 end
+if setthreadidentity then
+    pcall(setthreadidentity, 8)
+end
+
+if getgenv then
+    if getgenv().FlowPS99Unload then
+        local prevUnload = getgenv().FlowPS99Unload
+        getgenv().FlowPS99Unload = nil
+        task.spawn(function() pcall(prevUnload) end)
+    end
+    local prevWindow = getgenv().HipHubUI_Window
+    getgenv().HipHubUI_Window = nil
+    if prevWindow then
+        task.spawn(function()
+            pcall(function()
+                if type(prevWindow.Destroy) == "function" then
+                    prevWindow:Destroy()
+                elseif type(prevWindow.Close) == "function" then
+                    prevWindow:Close()
+                end
+            end)
+        end)
+    end
+    getgenv().FlowPS99Generation = (tonumber(getgenv().FlowPS99Generation) or 0) + 1
+    getgenv().FlowPS99LoadedAt = os.clock()
+end
 local flowSessionGeneration = (getgenv and getgenv().FlowPS99Generation) or 1
 
 
@@ -6113,7 +6139,6 @@ function runAutoWorldFarm()
         if not waitForZoneInteract(zonePath, isRunning) then
             return
         end
-
         local closestBreakZone = getClosestBreakZone(zonePath)
         if closestBreakZone then
             hrp.CFrame = closestBreakZone.CFrame + Vector3.new(0, 10, 0)
@@ -6123,16 +6148,21 @@ function runAutoWorldFarm()
     teleportToOwnedZone(true)
 
     while isRunning() do
-        local _, zoneName, maxZoneData = pcall(zoneCmds.GetMaxOwnedZone)
-        local latestZone = getLatestUnlockedBestArea()
-        if latestZone then
-            zoneName = latestZone.Name
-            maxZoneData = {
-                ZoneNumber = latestZone.Number
-            }
+        local maxOk, zoneName, maxZoneData = pcall(zoneCmds.GetMaxOwnedZone)
+        if not zoneName or not maxZoneData then
+            local latestZone = getLatestUnlockedBestArea()
+            if latestZone then
+                zoneName = latestZone.Name
+                maxZoneData = {
+                    ZoneNumber = latestZone.Number
+                }
+            end
         end
-        if maxZoneData and maxZoneData.ZoneNumber >= getgenv().autoWorldConfig.ZONE_TO_REACH then
-            print("Reached selected zone")
+
+        local zoneLimit = tonumber(getgenv().autoWorldConfig and getgenv().autoWorldConfig.ZONE_TO_REACH) or 999
+        if maxZoneData and maxZoneData.ZoneNumber and maxZoneData.ZoneNumber >= zoneLimit then
+            print("[Auto Farm To End] Reached target zone: " .. tostring(zoneLimit))
+            notifyFlow("Auto Farm To End", "Reached target zone: " .. tostring(zoneLimit), 4)
             break
         end
 
@@ -6152,11 +6182,12 @@ function runAutoWorldFarm()
             end)
 
             if purchased then
-                print("Purchased zone: " .. tostring(nextZoneName))
+                print("[Auto Farm To End] Purchased zone: " .. tostring(nextZoneName))
+                notifyFlow("Zone Purchased", "Unlocked " .. tostring(nextZoneName), 3)
 
                 if getgenv().autoWorldConfig.AUTO_REBIRTH and rebirthZone and nextZoneData and nextZoneData.ZoneNumber >= rebirthZone then
                     pcall(function()
-                        print("Rebirthing")
+                        print("[Auto Farm To End] Rebirthing...")
                         local clientNet = require(Library.Client.Network)
                         if clientNet and clientNet.Invoke then
                             clientNet.Invoke("Rebirth_Request", tostring(rebirthNumber))
@@ -6178,33 +6209,28 @@ function runAutoWorldFarm()
 
                 teleportToOwnedZone(true)
             else
-                local bestZone = getLatestUnlockedBestArea()
-                if bestZone then
-                    local matches = getBreakableFarmMatchingBreakables(bestZone, { "Any" })
-                    if #matches > 0 then
-                        local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
-                        damageBreakable(choice)
-                    else
-                        pokeNearestBestAreaBreakable(bestZone)
-                    end
-                end
                 teleportToOwnedZone(false)
             end
         else
-            local bestZone = getLatestUnlockedBestArea()
-            if bestZone then
-                local matches = getBreakableFarmMatchingBreakables(bestZone, { "Any" })
-                if #matches > 0 then
-                    local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
-                    damageBreakable(choice)
-                else
-                    pokeNearestBestAreaBreakable(bestZone)
-                end
-            end
             teleportToOwnedZone(false)
         end
 
-        if not waitForRunningDelay(getgenv().autoWorldConfig.PURCHASE_CHECK_DELAY, isRunning) then
+        local bestZone = getLatestUnlockedBestArea()
+        if bestZone then
+            local matches = getBreakableFarmMatchingBreakables(bestZone, { "Any" })
+            if #matches > 0 then
+                local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
+                if choice and choice:IsA("Instance") then
+                    local id = choice:GetAttribute("BreakableId") or choice.Name
+                    setEquippedPetsTarget(id)
+                    damageBreakable(choice)
+                end
+            else
+                pokeNearestBestAreaBreakable(bestZone)
+            end
+        end
+
+        if not waitForRunningDelay(0.2, isRunning) then
             break
         end
     end
@@ -6239,28 +6265,29 @@ function runCurrentStageFarm()
 
     print("Auto farming current stage: " .. tostring(zoneName))
 
+    local hrp = getHumanoidRootPart()
+    hrp.CFrame = zonePath.PERSISTENT.Teleport.CFrame + Vector3.new(0, 10, 0)
+    local closestBreakZone = getClosestBreakZone(zonePath)
+    if closestBreakZone then
+        hrp.CFrame = closestBreakZone.CFrame + Vector3.new(0, 10, 0)
+    end
+
     local lastTeleportAt = 0
     while autoCurrentStageFarmRunning and not getgenv().STAFF_DETECTED do
-        local hrp = getHumanoidRootPart()
-        hrp.CFrame = zonePath.PERSISTENT.Teleport.CFrame + Vector3.new(0, 10, 0)
-
-        if not waitForZoneInteract(zonePath, function()
-            return autoCurrentStageFarmRunning
-        end) then
-            task.wait(0.5)
-            continue
-        end
-
         local activeZone = latestZone or { Name = zoneName, FullName = zonePath.Name, Path = zonePath }
         local matches = getBreakableFarmMatchingBreakables(activeZone, { "Any" })
         if #matches > 0 then
             local now = os.clock()
             local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
-            if now - lastTeleportAt >= getgenv().breakableFarmConfig.TELEPORT_INTERVAL then
-                teleportToBreakable(choice)
-                lastTeleportAt = now
+            if choice and choice:IsA("Instance") then
+                local id = choice:GetAttribute("BreakableId") or choice.Name
+                setEquippedPetsTarget(id)
+                if now - lastTeleportAt >= getgenv().breakableFarmConfig.TELEPORT_INTERVAL then
+                    teleportToBreakable(choice)
+                    lastTeleportAt = now
+                end
+                damageBreakable(choice)
             end
-            damageBreakable(choice)
         else
             pokeNearestBestAreaBreakable(activeZone)
         end
