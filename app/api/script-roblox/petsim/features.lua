@@ -6435,16 +6435,28 @@ function runAutoWorldFarm()
         if bestZone then
             local matches = getBreakableFarmMatchingBreakables(bestZone, { "Any" })
             if #matches > 0 then
-                local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
-                if choice and choice:IsA("Instance") then
-                    local id = choice:GetAttribute("BreakableUID") or choice:GetAttribute("BreakableId") or choice.Name
+                local hrp = getHumanoidRootPart()
+                if hrp and #matches > 1 then
+                    table.sort(matches, function(a, b)
+                        local posA = getBreakableCFrame(a)
+                        local posB = getBreakableCFrame(b)
+                        if posA and posB then
+                            return (hrp.Position - posA.Position).Magnitude < (hrp.Position - posB.Position).Magnitude
+                        end
+                        return false
+                    end)
+                end
+
+                local primary = matches[1]
+                if primary and primary:IsA("Instance") then
+                    local id = primary:GetAttribute("BreakableUID") or primary:GetAttribute("BreakableId") or primary.Name
                     setEquippedPetsTarget(id)
-                    if getgenv().autoWorldConfig.MOVE_TO_BREAKABLES ~= false and now - lastTeleportAt >= (getgenv().autoWorldConfig.TELEPORT_INTERVAL or 1.2) then
-                        teleportToBreakable(choice)
-                        lastTeleportAt = now
-                    end
-                    if getgenv().autoWorldConfig.CLICK_BREAKABLES ~= false then
-                        damageBreakable(choice)
+                end
+
+                if getgenv().autoWorldConfig.CLICK_BREAKABLES ~= false then
+                    local clickCount = math.min(3, #matches)
+                    for i = 1, clickCount do
+                        damageBreakable(matches[i])
                     end
                 end
             else
@@ -6519,15 +6531,29 @@ function runCurrentStageFarm()
         local activeZone = latestZone or { Name = zoneName, FullName = zonePath.Name, Path = zonePath }
         local matches = getBreakableFarmMatchingBreakables(activeZone, { "Any" })
         if #matches > 0 then
-            local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
-            if choice and choice:IsA("Instance") then
-                local id = choice:GetAttribute("BreakableUID") or choice:GetAttribute("BreakableId") or choice.Name
+            local hrp = getHumanoidRootPart()
+            if hrp and #matches > 1 then
+                table.sort(matches, function(a, b)
+                    local posA = getBreakableCFrame(a)
+                    local posB = getBreakableCFrame(b)
+                    if posA and posB then
+                        return (hrp.Position - posA.Position).Magnitude < (hrp.Position - posB.Position).Magnitude
+                    end
+                    return false
+                end)
+            end
+
+            local primary = matches[1]
+            if primary and primary:IsA("Instance") then
+                local id = primary:GetAttribute("BreakableUID") or primary:GetAttribute("BreakableId") or primary.Name
                 setEquippedPetsTarget(id)
-                if getgenv().breakableFarmConfig.MOVE_TO_BREAKABLES ~= false and getgenv().autoWorldConfig.MOVE_TO_BREAKABLES ~= false and now - lastTeleportAt >= (getgenv().breakableFarmConfig.TELEPORT_INTERVAL or 1.2) then
-                    teleportToBreakable(choice)
-                    lastTeleportAt = now
+            end
+
+            if getgenv().autoWorldConfig.CLICK_BREAKABLES ~= false then
+                local clickCount = math.min(3, #matches)
+                for i = 1, clickCount do
+                    damageBreakable(matches[i])
                 end
-                damageBreakable(choice)
             end
         else
             pokeNearestBestAreaBreakable(activeZone)

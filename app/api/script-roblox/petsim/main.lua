@@ -67,60 +67,6 @@ WorldGroup:AddLabel({
     Wrap = true
 })
 
-WorldGroup:AddDropdown({
-    Name = "Breakable Farm Method",
-    Options = breakableFarmMethodValues,
-    Default = selectedBreakableFarmMethod,
-    Callback = function(option)
-        selectedBreakableFarmMethod = option
-        getgenv().breakableFarmConfig.METHOD = option
-    end
-})
-
-WorldGroup:AddDropdown({
-    Name = "Breakable Farm Zone",
-    OptionsProvider = function()
-        return breakableFarmZoneValues
-    end,
-    Default = selectedBreakableFarmZone or breakableFarmZoneValues[1],
-    AutoRefresh = true,
-    RefreshInterval = 2,
-    Callback = function(option)
-        selectedBreakableFarmZone = option
-        getgenv().breakableFarmConfig.ZONE = option
-    end
-})
-
-WorldGroup:AddDropdown({
-    Name = "Breakable Filter",
-    Options = breakableFarmFilterValues,
-    Default = selectedBreakableFarmFilters[1] or "Any",
-    Callback = function(option)
-        selectedBreakableFarmFilters = { option or "Any" }
-        getgenv().breakableFarmConfig.FILTERS = cloneArray(selectedBreakableFarmFilters)
-    end
-})
-
-WorldGroup:AddToggle({
-    Name = "Auto Breakable Farm",
-    Default = false,
-    Callback = function(state)
-        local function setRunning(value)
-            autoBreakableFarmRunning = value
-        end
-        if state then
-            stopAutomationWorker("WorldFarm", function(value) autoWorldFarmRunning = value end)
-            stopAutomationWorker("CurrentStage", function(value) autoCurrentStageFarmRunning = value end)
-            stopAutomationWorker("AutoQuest", function(value) autoQuestRunning = value end)
-            stopAutomationWorker("AutoChest", function(value) getgenv().autoChest = value end)
-            startAutomationWorker("BreakableFarm", setRunning, runAutoBreakableFarm)
-        else
-            stopAutomationWorker("BreakableFarm", setRunning)
-            clearOwnedPetTargets()
-        end
-    end
-})
-
 WorldGroup:AddToggle({
     Name = "Auto Farm Current Stage",
     Default = false,
@@ -174,15 +120,6 @@ WorldGroup:AddToggle({
     Default = true,
     Callback = function(state)
         getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG = state
-    end
-})
-
-WorldGroup:AddToggle({
-    Name = "Move To Breakables",
-    Default = false,
-    Callback = function(state)
-        getgenv().autoWorldConfig.MOVE_TO_BREAKABLES = state
-        getgenv().breakableFarmConfig.MOVE_TO_BREAKABLES = state
     end
 })
 
