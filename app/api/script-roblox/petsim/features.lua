@@ -5721,17 +5721,16 @@ function autoUnlockAndHatchZoneEgg()
         local eggData = directory.Eggs[eggId]
         if not eggData then return end
 
-        -- 1. Unlock egg if locked
+        -- 1. Unlock egg remotely if locked (no teleport needed)
         if eggCmds.IsEggLocked(eggId) then
             local unlocked = eggCmds.RequestUnlock(eggId)
             if unlocked then
                 print(string.format("[Auto Farm] Unlocked Egg #%d (%s)!", maxEggNum, tostring(eggId)))
                 notifyFlow("Egg Unlocked", string.format("Unlocked Egg #%d: %s", maxEggNum, tostring(eggId)), 3)
-                task.wait(0.3)
             end
         end
 
-        -- 2. Hatch egg if affordable
+        -- 2. Hatch egg remotely with maximum hatch count (e.g. 3 eggs at once) without teleporting!
         if eggCmds.IsUnlocked(eggId) then
             local eggPrice = 0
             pcall(function()
@@ -5739,30 +5738,24 @@ function autoUnlockAndHatchZoneEgg()
             end)
 
             local currentCoins = currencyCmds.Get("Coins") or 0
-            if currentCoins >= eggPrice and eggPrice > 0 then
-                local things = Workspace:FindFirstChild("__THINGS")
-                local eggsFolder = things and things:FindFirstChild("Eggs") and things.Eggs:FindFirstChild("Main")
-                local capsule = eggsFolder and eggsFolder:FindFirstChild(tostring(maxEggNum) .. " - Egg Capsule")
+            local maxHatch = 3
+            pcall(function()
+                local m = eggCmds.GetMaxHatch()
+                if type(m) == "number" and m > 0 then
+                    maxHatch = m
+                end
+            end)
 
-                local hrp = getHumanoidRootPart()
-                if hrp and capsule then
-                    local origCFrame = hrp.CFrame
-                    hrp.CFrame = capsule:GetPivot() + Vector3.new(0, 3, 0)
-                    task.wait(0.25)
+            local hatchAmount = maxHatch
+            if currentCoins < eggPrice * hatchAmount and currentCoins >= eggPrice then
+                hatchAmount = math.max(1, math.floor(currentCoins / math.max(eggPrice, 1)))
+            end
 
-                    local hatchCount = 1
-                    local maxHatch = pcall(function() return eggCmds.GetMaxHatch() end) and eggCmds.GetMaxHatch() or 1
-                    if currentCoins >= eggPrice * maxHatch * 3 then
-                        hatchCount = maxHatch
-                    end
-
-                    local bought = eggCmds.RequestPurchase(eggId, hatchCount)
-                    task.wait(0.2)
-                    hrp.CFrame = origCFrame
-                    if bought then
-                        print(string.format("[Auto Farm] Hatched %d x Egg #%d (%s)!", hatchCount, maxEggNum, tostring(eggId)))
-                        notifyFlow("Egg Hatched", string.format("Hatched %d x %s", hatchCount, tostring(eggId)), 3)
-                    end
+            if currentCoins >= eggPrice * hatchAmount and hatchAmount > 0 and eggPrice > 0 then
+                local bought = eggCmds.RequestPurchase(eggId, hatchAmount)
+                if bought then
+                    print(string.format("[Auto Farm] Remotely Hatched %d x Egg #%d (%s)!", hatchAmount, maxEggNum, tostring(eggId)))
+                    notifyFlow("Egg Hatched", string.format("Hatched %d x %s", hatchAmount, tostring(eggId)), 3)
                 end
             end
         end
