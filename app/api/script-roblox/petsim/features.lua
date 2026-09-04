@@ -3548,12 +3548,26 @@ function findAvailableZoneEntryByName(zoneName)
 end
 
 function isZoneOwnedByInteract(zonePath)
-    local interact = zonePath and zonePath:FindFirstChild("INTERACT")
+    if not zonePath then
+        return false
+    end
+    local interact = zonePath:FindFirstChild("INTERACT")
     if not interact then
         return false
     end
 
-    return interact:FindFirstChild("Gate", true) == nil
+    local gate = interact:FindFirstChild("Gate", true)
+    if not gate then
+        return true
+    end
+
+    if gate:IsA("BasePart") then
+        if gate.Transparency >= 0.9 or not gate.CanCollide then
+            return true
+        end
+    end
+
+    return false
 end
 
 function getOwnedZoneEntries()
@@ -4513,7 +4527,8 @@ function getLatestUnlockedBestArea()
         local maxOk, zoneName, maxZoneData = pcall(zoneCmds.GetMaxOwnedZone)
         if maxOk and zoneName and maxZoneData and maxZoneData.ZoneNumber then
             local zonePath = findZonePathByData(nil, maxZoneData.ZoneNumber, zoneName)
-            if zonePath and zonePath:FindFirstChild("PERSISTENT") and isZoneOwnedByInteract(zonePath) then
+            local isOwned = (type(zoneCmds.Owns) == "function" and zoneCmds.Owns(zoneName)) or (zonePath and isZoneOwnedByInteract(zonePath))
+            if zonePath and zonePath:FindFirstChild("PERSISTENT") and isOwned then
                 return {
                     Number = maxZoneData.ZoneNumber,
                     Name = zoneName,
@@ -4526,7 +4541,7 @@ function getLatestUnlockedBestArea()
 
             local fullName = tostring(maxZoneData.ZoneNumber) .. " | " .. tostring(zoneName)
             local entry = findAvailableZoneEntryByFullName(fullName) or findAvailableZoneEntryByName(zoneName)
-            if entry and entry.Path and isZoneOwnedByInteract(entry.Path) then
+            if entry and entry.Path and isOwned then
                 entry.Source = "ZoneCmds"
                 entry.GateTitle = getZoneGateTitleText(entry.Path)
                 return entry
@@ -4540,7 +4555,7 @@ function getLatestUnlockedBestArea()
     end)
 
     for _, entry in ipairs(entries) do
-        if isZoneOwnedByInteract(entry.Path) then
+        if isZoneEntryUnlocked(entry) then
             entry.Source = "Interact"
             entry.GateTitle = getZoneGateTitleText(entry.Path)
             return entry
@@ -4566,6 +4581,27 @@ end
 function isZoneEntryUnlocked(entry)
     if not entry then
         return false
+    end
+
+    local zoneCmdsOk, zoneCmds = pcall(function()
+        return require(Library.Client.ZoneCmds)
+    end)
+    if zoneCmdsOk and zoneCmds and type(zoneCmds.Owns) == "function" then
+        if entry.Name and zoneCmds.Owns(entry.Name) then
+            return true
+        end
+        if entry.FullName and zoneCmds.Owns(entry.FullName) then
+            return true
+        end
+    end
+
+    local saveOk, save = pcall(function()
+        return require(Library.Client.Save).Get()
+    end)
+    if saveOk and save and type(save.UnlockedZones) == "table" then
+        if entry.Name and (save.UnlockedZones[entry.Name] == true or save.UnlockedZones[tostring(entry.Name)] == true) then
+            return true
+        end
     end
 
     if entry.Path and isZoneOwnedByInteract(entry.Path) then

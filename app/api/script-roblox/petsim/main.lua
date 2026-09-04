@@ -145,6 +145,7 @@ WorldGroup:AddToggle({
             stopAutomationWorker("WorldFarm", function(value) autoWorldFarmRunning = value end)
             stopAutomationWorker("CurrentStage", function(value) autoCurrentStageFarmRunning = value end)
             stopAutomationWorker("AutoQuest", function(value) autoQuestRunning = value end)
+            stopAutomationWorker("AutoChest", function(value) getgenv().autoChest = value end)
             startAutomationWorker("BreakableFarm", setRunning, runAutoBreakableFarm)
         else
             stopAutomationWorker("BreakableFarm", setRunning)
@@ -161,7 +162,10 @@ WorldGroup:AddToggle({
             autoCurrentStageFarmRunning = value
         end
         if state then
+            stopAutomationWorker("BreakableFarm", function(value) autoBreakableFarmRunning = value end)
             stopAutomationWorker("WorldFarm", function(value) autoWorldFarmRunning = value end)
+            stopAutomationWorker("AutoQuest", function(value) autoQuestRunning = value end)
+            stopAutomationWorker("AutoChest", function(value) getgenv().autoChest = value end)
             startAutomationWorker("CurrentStage", setRunning, runCurrentStageFarm)
         else
             stopAutomationWorker("CurrentStage", setRunning)
@@ -178,7 +182,10 @@ WorldGroup:AddToggle({
             autoWorldFarmRunning = value
         end
         if state then
+            stopAutomationWorker("BreakableFarm", function(value) autoBreakableFarmRunning = value end)
             stopAutomationWorker("CurrentStage", function(value) autoCurrentStageFarmRunning = value end)
+            stopAutomationWorker("AutoQuest", function(value) autoQuestRunning = value end)
+            stopAutomationWorker("AutoChest", function(value) getgenv().autoChest = value end)
             startAutomationWorker("WorldFarm", setRunning, runAutoWorldFarm)
         else
             stopAutomationWorker("WorldFarm", setRunning)
@@ -195,6 +202,9 @@ WorldGroup:AddToggle({
             getgenv().autoChest = value
         end
         if state then
+            stopAutomationWorker("BreakableFarm", function(value) autoBreakableFarmRunning = value end)
+            stopAutomationWorker("CurrentStage", function(value) autoCurrentStageFarmRunning = value end)
+            stopAutomationWorker("WorldFarm", function(value) autoWorldFarmRunning = value end)
             startAutomationWorker("AutoChest", setRunning, function()
             ensureAntiStaff()
             ensurePetSpeed()
