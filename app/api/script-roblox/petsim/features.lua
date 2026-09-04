@@ -1947,15 +1947,20 @@ function claimOrb(orb)
         return false
     end
 
-    local remote = Network:FindFirstChild("Orbs: Collect")
-    if not remote then
-        return false
-    end
-
-    local ok = pcall(function()
-        remote:FireServer({ tonumber(orb.Name) or orb.Name })
+    local orbId = tonumber(orb.Name) or orb.Name
+    pcall(function()
+        local clientNet = require(Library.Client.Network)
+        if clientNet and clientNet.Fire then
+            clientNet.Fire("Orbs: Collect", { orbId })
+        end
     end)
-    return ok
+    pcall(function()
+        local remote = Network:FindFirstChild("Orbs: Collect")
+        if remote then
+            remote:FireServer({ orbId })
+        end
+    end)
+    return true
 end
 
 local QUEST_DIFFICULTIES = { "Extreme", "Hard", "Medium", "Easy" }
@@ -4508,7 +4513,7 @@ function getLatestUnlockedBestArea()
         local maxOk, zoneName, maxZoneData = pcall(zoneCmds.GetMaxOwnedZone)
         if maxOk and zoneName and maxZoneData and maxZoneData.ZoneNumber then
             local zonePath = findZonePathByData(nil, maxZoneData.ZoneNumber, zoneName)
-            if zonePath and zonePath:FindFirstChild("PERSISTENT") then
+            if zonePath and zonePath:FindFirstChild("PERSISTENT") and isZoneOwnedByInteract(zonePath) then
                 return {
                     Number = maxZoneData.ZoneNumber,
                     Name = zoneName,
@@ -4521,7 +4526,7 @@ function getLatestUnlockedBestArea()
 
             local fullName = tostring(maxZoneData.ZoneNumber) .. " | " .. tostring(zoneName)
             local entry = findAvailableZoneEntryByFullName(fullName) or findAvailableZoneEntryByName(zoneName)
-            if entry then
+            if entry and entry.Path and isZoneOwnedByInteract(entry.Path) then
                 entry.Source = "ZoneCmds"
                 entry.GateTitle = getZoneGateTitleText(entry.Path)
                 return entry
@@ -4548,6 +4553,11 @@ function getLatestUnlockedBestArea()
             entry.GateTitle = getZoneGateTitleText(entry.Path)
             return entry
         end
+    end
+
+    if #entries > 0 then
+        table.sort(entries, function(a, b) return a.Number < b.Number end)
+        return entries[1]
     end
 
     return nil
@@ -4776,6 +4786,13 @@ function breakableMatchesZone(breakable, zoneInfo)
     local zoneName = tostring(zoneInfo.Name or "")
     local zoneFullName = tostring(zoneInfo.FullName or "")
     local zoneNumber = tostring(zoneInfo.Number or "")
+    local isVipZone = zoneName:lower():find("vip") ~= nil or zoneFullName:lower():find("vip") ~= nil
+
+    local isVipBreakable = breakable:GetAttribute("VIPBreakable") == true or tostring(breakable:GetAttribute("AreaID") or ""):lower() == "vip"
+    if isVipBreakable and not isVipZone then
+        return false
+    end
+
     local parentId = tostring(breakable:GetAttribute("ParentID") or breakable:GetAttribute("ParentId") or "")
     local parentKey = collapseKey(parentId)
     local candidates = {
@@ -4796,7 +4813,7 @@ function breakableMatchesZone(breakable, zoneInfo)
         end
     end
 
-    for _, attributeName in ipairs({ "ParentID", "ParentId", "Zone", "ZoneName", "Area" }) do
+    for _, attributeName in ipairs({ "ParentID", "ParentId", "Zone", "ZoneName", "Area", "AreaID" }) do
         local attributeValue = breakable:GetAttribute(attributeName)
         if attributeValue ~= nil then
             local value = tostring(attributeValue)
@@ -4817,34 +4834,63 @@ function setEquippedPetsTarget(targetId)
     if not targetId then
         return false
     end
+    targetId = tostring(targetId)
     if lastPetTargetId == targetId then
         return true
     end
 
-    local ok, saveData = pcall(function()
-        return require(Library.Client.Save).Get(LocalPlayer)
+    local petCmdsOk, petCmds = pcall(function()
+        return require(Library.Client.PetCmds)
     end)
-    if not ok or not saveData or not saveData.EquippedPets then
-        return false
-    end
+    local equipped = (petCmdsOk and petCmds and petCmds.GetEquipped and petCmds.GetEquipped()) or {}
 
-    local args = {
-        [1] = {}
-    }
-
-    for petId in pairs(saveData.EquippedPets) do
-        args[1][petId] = {
-            targetValue = targetId,
-            targetType = "Player"
+    local petBulk = {}
+    local bulkTarget = {}
+    for euid, _ in pairs(equipped) do
+        local euidStr = tostring(euid)
+        petBulk[euidStr] = targetId
+        bulkTarget[euidStr] = {
+            targetId = targetId,
+            targetType = "Breakable"
         }
     end
 
-    local sent = pcall(function()
-        Network.Pets_SetTargetBulk:FireServer(unpack(args))
-    end)
-    if not sent then
-        return false
+    if next(petBulk) == nil then
+        local ok, saveData = pcall(function()
+            return require(Library.Client.Save).Get(LocalPlayer)
+        end)
+        if ok and saveData and saveData.EquippedPets then
+            for petId in pairs(saveData.EquippedPets) do
+                local pStr = tostring(petId)
+                petBulk[pStr] = targetId
+                bulkTarget[pStr] = {
+                    targetId = targetId,
+                    targetType = "Breakable"
+                }
+            end
+        end
     end
+
+    if next(petBulk) ~= nil then
+        pcall(function()
+            local clientNet = require(Library.Client.Network)
+            if clientNet and clientNet.Fire then
+                clientNet.Fire("Breakables_JoinPetBulk", petBulk)
+                clientNet.Fire("Pets_SetTargetBulk", bulkTarget)
+            end
+        end)
+        pcall(function()
+            local remoteJoin = Network:FindFirstChild("Breakables_JoinPetBulk")
+            if remoteJoin then
+                remoteJoin:FireServer(petBulk)
+            end
+            local remoteTarget = Network:FindFirstChild("Pets_SetTargetBulk")
+            if remoteTarget then
+                remoteTarget:FireServer(bulkTarget)
+            end
+        end)
+    end
+
     lastPetTargetId = targetId
     return true
 end
@@ -5461,29 +5507,30 @@ function damageBreakable(breakable)
 
     local targetId = getBreakableTargetId(breakable)
     if not targetId then
-        warn("[Auto Quest] Missing breakable target id for " .. tostring(getBreakableDisplayName(breakable) or breakable.Name or "unknown"))
         return false
     end
 
     setEquippedPetsTarget(targetId)
 
-    for _ = 1, 3 do
-        pcall(function()
-            local args = {
-                targetId
-            }
-            Network.Breakables_PlayerDealDamage:FireServer(unpack(args))
-        end)
-        task.wait(math.max(getgenv().autoQuestConfig.ACTION_DELAY * 0.3, 0.03))
-    end
+    pcall(function()
+        local clientNet = require(Library.Client.Network)
+        if clientNet and clientNet.Fire then
+            clientNet.Fire("Breakables_PlayerDealDamage", targetId)
+        end
+    end)
+    pcall(function()
+        local remote = Network:FindFirstChild("Breakables_PlayerDealDamage")
+        if remote then
+            remote:FireServer(targetId)
+        end
+    end)
 
     firePrimaryClick()
-
     return true
 end
 
 function damageBreakableByName(breakable)
-    if not breakable or not breakable.Parent then
+    if not breakable then
         return false
     end
 
@@ -5494,12 +5541,18 @@ function damageBreakableByName(breakable)
 
     setEquippedPetsTarget(targetName)
 
-    for _ = 1, 3 do
-        pcall(function()
-            Network.Breakables_PlayerDealDamage:FireServer(targetName)
-        end)
-        task.wait(math.max(getgenv().autoQuestConfig.ACTION_DELAY * 0.3, 0.03))
-    end
+    pcall(function()
+        local clientNet = require(Library.Client.Network)
+        if clientNet and clientNet.Fire then
+            clientNet.Fire("Breakables_PlayerDealDamage", targetName)
+        end
+    end)
+    pcall(function()
+        local remote = Network:FindFirstChild("Breakables_PlayerDealDamage")
+        if remote then
+            remote:FireServer(targetName)
+        end
+    end)
 
     firePrimaryClick()
     return true
@@ -6035,14 +6088,12 @@ function runAutoWorldFarm()
 
     while isRunning() do
         local _, zoneName, maxZoneData = pcall(zoneCmds.GetMaxOwnedZone)
-        if not zoneName or not maxZoneData then
-            local latestZone = getLatestUnlockedBestArea()
-            if latestZone then
-                zoneName = latestZone.Name
-                maxZoneData = {
-                    ZoneNumber = latestZone.Number
-                }
-            end
+        local latestZone = getLatestUnlockedBestArea()
+        if latestZone then
+            zoneName = latestZone.Name
+            maxZoneData = {
+                ZoneNumber = latestZone.Number
+            }
         end
         if maxZoneData and maxZoneData.ZoneNumber >= getgenv().autoWorldConfig.ZONE_TO_REACH then
             print("Reached selected zone")
@@ -6053,8 +6104,15 @@ function runAutoWorldFarm()
         if nextZoneName then
             local purchased = false
             pcall(function()
-                local results = { Network.Zones_RequestPurchase:InvokeServer(nextZoneName) }
-                purchased = results[1] == true
+                local clientNet = require(Library.Client.Network)
+                if clientNet and clientNet.Invoke then
+                    purchased = clientNet.Invoke("Zones_RequestPurchase", nextZoneName) == true
+                else
+                    local remote = Network:FindFirstChild("Zones_RequestPurchase")
+                    if remote then
+                        purchased = remote:InvokeServer(nextZoneName) == true
+                    end
+                end
             end)
 
             if purchased then
@@ -6063,7 +6121,15 @@ function runAutoWorldFarm()
                 if getgenv().autoWorldConfig.AUTO_REBIRTH and rebirthZone and nextZoneData and nextZoneData.ZoneNumber >= rebirthZone then
                     pcall(function()
                         print("Rebirthing")
-                        Network.Rebirth_Request:InvokeServer(tostring(rebirthNumber))
+                        local clientNet = require(Library.Client.Network)
+                        if clientNet and clientNet.Invoke then
+                            clientNet.Invoke("Rebirth_Request", tostring(rebirthNumber))
+                        else
+                            local remote = Network:FindFirstChild("Rebirth_Request")
+                            if remote then
+                                remote:InvokeServer(tostring(rebirthNumber))
+                            end
+                        end
                     end)
                     if not waitForRunningDelay(15, isRunning) then
                         break
@@ -6076,9 +6142,29 @@ function runAutoWorldFarm()
 
                 teleportToOwnedZone(true)
             else
+                local bestZone = getLatestUnlockedBestArea()
+                if bestZone then
+                    local matches = getBreakableFarmMatchingBreakables(bestZone, { "Any" })
+                    if #matches > 0 then
+                        local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
+                        damageBreakable(choice)
+                    else
+                        pokeNearestBestAreaBreakable(bestZone)
+                    end
+                end
                 teleportToOwnedZone(false)
             end
         else
+            local bestZone = getLatestUnlockedBestArea()
+            if bestZone then
+                local matches = getBreakableFarmMatchingBreakables(bestZone, { "Any" })
+                if #matches > 0 then
+                    local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
+                    damageBreakable(choice)
+                else
+                    pokeNearestBestAreaBreakable(bestZone)
+                end
+            end
             teleportToOwnedZone(false)
         end
 
@@ -6092,28 +6178,23 @@ end
 
 function runCurrentStageFarm()
     ensureAntiStaff()
+    ensureLootbagCollector()
+    ensureOrbCollector()
     ensurePetSpeed()
 
     local map = getCurrentMap()
     local zoneCmds = require(Library.Client.ZoneCmds)
     local _, zoneName, zoneData = pcall(zoneCmds.GetMaxOwnedZone)
-    local latestZone
+    local latestZone = getLatestUnlockedBestArea()
 
-    if not map or not zoneName or not zoneData then
-        latestZone = getLatestUnlockedBestArea()
-        if latestZone then
-            zoneName = latestZone.Name
-            zoneData = {
-                ZoneNumber = latestZone.Number
-            }
-        else
-            warn("Failed to resolve the current stage.")
-            autoCurrentStageFarmRunning = false
-            return
-        end
+    if latestZone then
+        zoneName = latestZone.Name
+        zoneData = {
+            ZoneNumber = latestZone.Number
+        }
     end
 
-    local zonePath = latestZone and latestZone.Path or findZonePathByData(nil, zoneData.ZoneNumber, zoneName)
+    local zonePath = latestZone and latestZone.Path or findZonePathByData(nil, zoneData and zoneData.ZoneNumber, zoneName)
     if not zonePath or not zonePath:FindFirstChild("PERSISTENT") then
         warn("Failed to find stage path for " .. tostring(zoneName))
         autoCurrentStageFarmRunning = false
@@ -6122,6 +6203,7 @@ function runCurrentStageFarm()
 
     print("Auto farming current stage: " .. tostring(zoneName))
 
+    local lastTeleportAt = 0
     while autoCurrentStageFarmRunning and not getgenv().STAFF_DETECTED do
         local hrp = getHumanoidRootPart()
         hrp.CFrame = zonePath.PERSISTENT.Teleport.CFrame + Vector3.new(0, 10, 0)
@@ -6129,40 +6211,25 @@ function runCurrentStageFarm()
         if not waitForZoneInteract(zonePath, function()
             return autoCurrentStageFarmRunning
         end) then
-            break
+            task.wait(0.5)
+            continue
         end
 
-        local breakZonesFolder = zonePath.INTERACT:FindFirstChild("BREAK_ZONES")
-        local moved = false
-        if breakZonesFolder then
-            local breakZones = breakZonesFolder:GetChildren()
-            table.sort(breakZones, function(a, b)
-                return a.Name < b.Name
-            end)
-
-            for _, breakZone in ipairs(breakZones) do
-                if not autoCurrentStageFarmRunning or getgenv().STAFF_DETECTED then
-                    break
-                end
-                if breakZone:IsA("BasePart") then
-                    hrp.CFrame = breakZone.CFrame + Vector3.new(0, 10, 0)
-                    moved = true
-                    if not waitForRunningDelay(getgenv().autoStageFarmConfig.MOVE_DELAY, function()
-                        return autoCurrentStageFarmRunning and not getgenv().STAFF_DETECTED
-                    end) then
-                        break
-                    end
-                end
+        local activeZone = latestZone or { Name = zoneName, FullName = zonePath.Name, Path = zonePath }
+        local matches = getBreakableFarmMatchingBreakables(activeZone, { "Any" })
+        if #matches > 0 then
+            local now = os.clock()
+            local choice = matches[BREAKABLE_RANDOM:NextInteger(1, #matches)]
+            if now - lastTeleportAt >= getgenv().breakableFarmConfig.TELEPORT_INTERVAL then
+                teleportToBreakable(choice)
+                lastTeleportAt = now
             end
+            damageBreakable(choice)
+        else
+            pokeNearestBestAreaBreakable(activeZone)
         end
 
-        if not moved then
-            if not waitForRunningDelay(getgenv().autoStageFarmConfig.MOVE_DELAY, function()
-                return autoCurrentStageFarmRunning and not getgenv().STAFF_DETECTED
-            end) then
-                break
-            end
-        end
+        task.wait(math.max(getgenv().autoStageFarmConfig.MOVE_DELAY, 0.1))
     end
 
     autoCurrentStageFarmRunning = false
@@ -11140,21 +11207,8 @@ function breakBigChest(zonePath, zoneName)
         return false
     end
 
-    local saveModule = require(client.Save)
     if getgenv().autoChestConfig.SEND_PETS and isRunning() then
-        local targets = {
-            [1] = {}
-        }
-
-        for petId in pairs(saveModule.Get(LocalPlayer).EquippedPets) do
-            targets[1][petId] = {
-                targetValue = chest,
-                targetType = "Player"
-            }
-        end
-
-        Network.Pets_SetTargetBulk:FireServer(unpack(targets))
-        lastPetTargetId = chest
+        setEquippedPetsTarget(chest)
     end
 
     local brokeChest = false
@@ -11175,7 +11229,18 @@ function breakBigChest(zonePath, zoneName)
             if not isRunning() then
                 break
             end
-            Network.Breakables_PlayerDealDamage:FireServer(chest)
+            pcall(function()
+                local clientNet = require(Library.Client.Network)
+                if clientNet and clientNet.Fire then
+                    clientNet.Fire("Breakables_PlayerDealDamage", chest)
+                end
+            end)
+            pcall(function()
+                local remote = Network:FindFirstChild("Breakables_PlayerDealDamage")
+                if remote then
+                    remote:FireServer(chest)
+                end
+            end)
             task.wait()
         until brokeChest or not isRunning()
     end)

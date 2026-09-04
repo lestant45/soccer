@@ -308,17 +308,7 @@ WorldGroup:AddToggle({
                     return false
                 end
                 if getgenv().autoChestConfig.SEND_PETS then
-                    local args = {
-                        [1] = {}
-                    }
-                    for petId, _ in pairs(require(Client.Save).Get(LocalPlayer).EquippedPets) do
-                        args[1][petId] = {
-                            ["targetValue"] = chest,
-                            ["targetType"] = "Player"
-                        }
-                    end
-                    ReplicatedStorage.Network.Pets_SetTargetBulk:FireServer(unpack(args))
-                    lastPetTargetId = chest
+                    setEquippedPetsTarget(chest)
                 end
                 local brokeChest = false
                 local breakableRemovedService = Workspace:WaitForChild("__THINGS").Breakables.ChildRemoved:Connect(function(breakable)
@@ -336,10 +326,18 @@ WorldGroup:AddToggle({
                         if not isRunning() then
                             break
                         end
-                        local args = {
-                            [1] = chest
-                        }
-                        game:GetService("ReplicatedStorage").Network.Breakables_PlayerDealDamage:FireServer(unpack(args))
+                        pcall(function()
+                            local clientNet = require(Library.Client.Network)
+                            if clientNet and clientNet.Fire then
+                                clientNet.Fire("Breakables_PlayerDealDamage", chest)
+                            end
+                        end)
+                        pcall(function()
+                            local remote = ReplicatedStorage.Network:FindFirstChild("Breakables_PlayerDealDamage")
+                            if remote then
+                                remote:FireServer(chest)
+                            end
+                        end)
                         task.wait()
                     until brokeChest or not isRunning()
                 end)
@@ -549,9 +547,21 @@ MinigameAutomationGroup:AddToggle({
 
                     if closestBreakable then
                         LocalPlayer.Character.HumanoidRootPart.CFrame = closestBreakable.CFrame
+                        setEquippedPetsTarget(closestBreakable.Name)
                         repeat
                             if not getgenv().autoChestRaidRunning then break end
-                            ReplicatedStorage.Network.Breakables_PlayerDealDamage:FireServer(closestBreakable.Name)
+                            pcall(function()
+                                local clientNet = require(Library.Client.Network)
+                                if clientNet and clientNet.Fire then
+                                    clientNet.Fire("Breakables_PlayerDealDamage", closestBreakable.Name)
+                                end
+                            end)
+                            pcall(function()
+                                local remote = ReplicatedStorage.Network:FindFirstChild("Breakables_PlayerDealDamage")
+                                if remote then
+                                    remote:FireServer(closestBreakable.Name)
+                                end
+                            end)
                             task.wait(0.05)
                         until not Breakables:FindFirstChild(closestBreakable.Name)
                     else
