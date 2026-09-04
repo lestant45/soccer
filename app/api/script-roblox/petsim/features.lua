@@ -5686,38 +5686,32 @@ function autoBuyAreaUpgrades()
         local hrp = getHumanoidRootPart()
         if not hrp then return end
 
-        local allowTeleport = getgenv().autoWorldConfig and getgenv().autoWorldConfig.TELEPORT_FOR_UPGRADES == true
+        local origCFrame = hrp.CFrame
+        local didAny = false
 
         for _, upg in ipairs(all) do
             if upg.Model and upgradeCmds.CanInteractWith(upg.UpgradeID, upg.ZoneID) then
                 local dirInfo = directory.Upgrades[upg.UpgradeID]
                 local cost = (dirInfo and dirInfo.TierCosts and dirInfo.TierCosts[upg.UpgradeTier]) or 0
+                diamonds = currencyCmds.Get("Diamonds") or 0
                 if diamonds >= cost and cost > 0 then
                     local padPivot = upg.Model:GetPivot()
-                    local dist = (hrp.Position - padPivot.Position).Magnitude
-                    if dist <= 25 then
-                        local bought = upgradeCmds.Purchase(upg.UpgradeID, upg.ZoneID)
-                        if bought then
-                            print(string.format("[Auto Farm] Purchased Upgrade: %s Tier %s in %s (%s Diamonds)", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID), tostring(cost)))
-                            notifyFlow("Upgrade Purchased", string.format("%s (%s) in %s", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID)), 3)
-                            diamonds = currencyCmds.Get("Diamonds") or 0
-                        end
-                    elseif allowTeleport then
-                        local origCFrame = hrp.CFrame
-                        hrp.CFrame = padPivot + Vector3.new(0, 3, 0)
-                        task.wait(0.25)
-                        local bought = upgradeCmds.Purchase(upg.UpgradeID, upg.ZoneID)
-                        task.wait(0.15)
-                        hrp.CFrame = origCFrame
-                        if bought then
-                            print(string.format("[Auto Farm] Purchased Upgrade: %s Tier %s in %s (%s Diamonds)", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID), tostring(cost)))
-                            notifyFlow("Upgrade Purchased", string.format("%s (%s) in %s", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID)), 3)
-                            diamonds = currencyCmds.Get("Diamonds") or 0
-                        end
-                        task.wait(0.1)
+                    hrp.CFrame = padPivot + Vector3.new(0, 3, 0)
+                    task.wait(0.2)
+                    local bought = upgradeCmds.Purchase(upg.UpgradeID, upg.ZoneID)
+                    task.wait(0.15)
+                    if bought then
+                        didAny = true
+                        print(string.format("[Auto Farm] Purchased Upgrade: %s Tier %s in %s (%s Diamonds)", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID), tostring(cost)))
+                        notifyFlow("Upgrade Purchased", string.format("%s (%s) in %s", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID)), 3)
+                        diamonds = currencyCmds.Get("Diamonds") or 0
                     end
                 end
             end
+        end
+
+        if didAny and origCFrame then
+            hrp.CFrame = origCFrame
         end
     end)
     return ok
