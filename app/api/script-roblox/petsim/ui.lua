@@ -1455,5 +1455,3 @@ env.HipHubUI = {
 	CORNER = CORNER,
 }
 _G.HipHubUI = env.HipHubUI
-
-return FlowLibrary

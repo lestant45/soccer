@@ -634,13 +634,12 @@ func()
       });
     }
 
-    const userRole = "free";
     let luaScript = `_G.hiphub_key = "KEYLESS"\n_G.hiphub_role = "${userRole}"\n_G.hiphub_url = "${baseUrl}"\nif getgenv then getgenv().hiphub_key = "KEYLESS" end\nif getgenv then getgenv().hiphub_role = "${userRole}" end\nif getgenv then getgenv().hiphub_url = "${baseUrl}" end\n`;
-    luaScript += fs.readFileSync(uiPath, "utf8");
+    luaScript += "do\n" + fs.readFileSync(uiPath, "utf8") + "\nend\n";
 
-    if (fs.existsSync(featuresPath)) luaScript += "\n" + fs.readFileSync(featuresPath, "utf8");
-    if (fs.existsSync(settingsPath)) luaScript += "\n" + fs.readFileSync(settingsPath, "utf8");
-    if (fs.existsSync(mainPath)) luaScript += "\n" + fs.readFileSync(mainPath, "utf8");
+    if (fs.existsSync(featuresPath)) luaScript += "do\n" + fs.readFileSync(featuresPath, "utf8") + "\nend\n";
+    if (fs.existsSync(settingsPath)) luaScript += "do\n" + fs.readFileSync(settingsPath, "utf8") + "\nend\n";
+    if (fs.existsSync(mainPath)) luaScript += "do\n" + fs.readFileSync(mainPath, "utf8") + "\nend\n";
 
     const executor = (searchParams.get("executor") || "").toLowerCase();
     const isArceus = executor.includes("arceus");

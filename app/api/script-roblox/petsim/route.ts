@@ -300,16 +300,24 @@ export async function GET(request: NextRequest) {
 -- ==============================================================================
 
 -- [Module 1: UI Engine]
+do
 ${uiLua}
+end
 
 -- [Module 2: Settings Engine]
+do
 ${settingsLua}
+end
 
 -- [Module 3: Features & Automation Engine]
+do
 ${featuresLua}
+end
 
 -- [Module 4: Main Controller Engine]
+do
 ${mainLua}
+end
 `;
 
     if (isRaw) {

@@ -29,7 +29,7 @@ local function loadAll()
 	local chunks = {}
 	for _, file in ipairs(MODULE_FILES) do
 		local content = loadScriptFile(file)
-		table.insert(chunks, content)
+		table.insert(chunks, "do\n" .. content .. "\nend")
 		debugLog("Loaded " .. file)
 	end
 
