@@ -179,7 +179,7 @@ WorldGroup:AddToggle({
 
 WorldGroup:AddToggle({
     Name = "Move To Breakables",
-    Default = true,
+    Default = false,
     Callback = function(state)
         getgenv().autoWorldConfig.MOVE_TO_BREAKABLES = state
         getgenv().breakableFarmConfig.MOVE_TO_BREAKABLES = state

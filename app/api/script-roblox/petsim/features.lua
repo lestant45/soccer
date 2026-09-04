@@ -722,10 +722,11 @@ setDefault(getgenv().autoWorldConfig, "PURCHASE_CHECK_DELAY", 1)
 setDefault(getgenv().autoWorldConfig, "ZONE_TO_REACH", 999)
 setDefault(getgenv().autoWorldConfig, "AUTO_REBIRTH", false)
 setDefault(getgenv().autoWorldConfig, "AUTO_BUY_UPGRADES", true)
+setDefault(getgenv().autoWorldConfig, "TELEPORT_FOR_UPGRADES", false)
 setDefault(getgenv().autoWorldConfig, "AUTO_HATCH_ZONE_EGG", true)
-setDefault(getgenv().autoWorldConfig, "MOVE_TO_BREAKABLES", true)
+setDefault(getgenv().autoWorldConfig, "MOVE_TO_BREAKABLES", false)
 setDefault(getgenv().autoWorldConfig, "CLICK_BREAKABLES", true)
-setDefault(getgenv().autoWorldConfig, "SWEEP_ORBS", true)
+setDefault(getgenv().autoWorldConfig, "SWEEP_ORBS", false)
 setDefault(getgenv().autoWorldConfig, "TELEPORT_INTERVAL", 1.2)
 
 getgenv().autoStageFarmConfig = getgenv().autoStageFarmConfig or {}
@@ -793,9 +794,9 @@ setDefault(getgenv().breakableFarmConfig, "ZONE", "")
 setDefault(getgenv().breakableFarmConfig, "FILTERS", { "Any" })
 setDefault(getgenv().breakableFarmConfig, "REPOSITION_INTERVAL", 8)
 setDefault(getgenv().breakableFarmConfig, "TELEPORT_INTERVAL", 1.2)
-setDefault(getgenv().breakableFarmConfig, "MOVE_TO_BREAKABLES", true)
+setDefault(getgenv().breakableFarmConfig, "MOVE_TO_BREAKABLES", false)
 setDefault(getgenv().breakableFarmConfig, "CLICK_BREAKABLES", true)
-setDefault(getgenv().breakableFarmConfig, "SWEEP_ORBS", true)
+setDefault(getgenv().breakableFarmConfig, "SWEEP_ORBS", false)
 
 getgenv().autoRNGConfig = getgenv().autoRNGConfig or {}
 setDefault(getgenv().autoRNGConfig, "DELAY", 0.2)
@@ -5554,6 +5555,12 @@ function runCollectPotionsQuestStep(isRunning)
 end
 
 function teleportToBreakable(breakable)
+    if getgenv().autoWorldConfig and getgenv().autoWorldConfig.MOVE_TO_BREAKABLES == false then
+        return false
+    end
+    if getgenv().breakableFarmConfig and getgenv().breakableFarmConfig.MOVE_TO_BREAKABLES == false then
+        return false
+    end
     local targetCFrame = getBreakableCFrame(breakable)
     if not targetCFrame then
         return false
@@ -5679,24 +5686,36 @@ function autoBuyAreaUpgrades()
         local hrp = getHumanoidRootPart()
         if not hrp then return end
 
+        local allowTeleport = getgenv().autoWorldConfig and getgenv().autoWorldConfig.TELEPORT_FOR_UPGRADES == true
+
         for _, upg in ipairs(all) do
             if upg.Model and upgradeCmds.CanInteractWith(upg.UpgradeID, upg.ZoneID) then
                 local dirInfo = directory.Upgrades[upg.UpgradeID]
                 local cost = (dirInfo and dirInfo.TierCosts and dirInfo.TierCosts[upg.UpgradeTier]) or 0
                 if diamonds >= cost and cost > 0 then
-                    local origCFrame = hrp.CFrame
                     local padPivot = upg.Model:GetPivot()
-                    hrp.CFrame = padPivot + Vector3.new(0, 3, 0)
-                    task.wait(0.25)
-                    local bought = upgradeCmds.Purchase(upg.UpgradeID, upg.ZoneID)
-                    task.wait(0.15)
-                    hrp.CFrame = origCFrame
-                    if bought then
-                        print(string.format("[Auto Farm] Purchased Upgrade: %s Tier %s in %s (%s Diamonds)", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID), tostring(cost)))
-                        notifyFlow("Upgrade Purchased", string.format("%s (%s) in %s", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID)), 3)
-                        diamonds = currencyCmds.Get("Diamonds") or 0
+                    local dist = (hrp.Position - padPivot.Position).Magnitude
+                    if dist <= 25 then
+                        local bought = upgradeCmds.Purchase(upg.UpgradeID, upg.ZoneID)
+                        if bought then
+                            print(string.format("[Auto Farm] Purchased Upgrade: %s Tier %s in %s (%s Diamonds)", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID), tostring(cost)))
+                            notifyFlow("Upgrade Purchased", string.format("%s (%s) in %s", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID)), 3)
+                            diamonds = currencyCmds.Get("Diamonds") or 0
+                        end
+                    elseif allowTeleport then
+                        local origCFrame = hrp.CFrame
+                        hrp.CFrame = padPivot + Vector3.new(0, 3, 0)
+                        task.wait(0.25)
+                        local bought = upgradeCmds.Purchase(upg.UpgradeID, upg.ZoneID)
+                        task.wait(0.15)
+                        hrp.CFrame = origCFrame
+                        if bought then
+                            print(string.format("[Auto Farm] Purchased Upgrade: %s Tier %s in %s (%s Diamonds)", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID), tostring(cost)))
+                            notifyFlow("Upgrade Purchased", string.format("%s (%s) in %s", tostring(upg.UpgradeID), tostring(upg.UpgradeTier), tostring(upg.ZoneID)), 3)
+                            diamonds = currencyCmds.Get("Diamonds") or 0
+                        end
+                        task.wait(0.1)
                     end
-                    task.wait(0.1)
                 end
             end
         end
@@ -5706,32 +5725,52 @@ end
 
 function autoUnlockAndHatchZoneEgg()
     local ok = pcall(function()
+        local zoneCmds = require(Library.Client.ZoneCmds)
         local eggCmds = require(Library.Client.EggCmds)
         local eggsUtil = require(Library.Util.EggsUtil)
         local currencyCmds = require(Library.Client.CurrencyCmds)
         local directory = require(Library.Directory)
         local calcEggPrice = require(Library.Balancing.CalcEggPrice)
+        local saveCmds = require(Library.Client.Save)
+        local save = saveCmds and saveCmds.Get()
 
-        local maxEggNum = eggCmds.GetHighestEggNumberAvailable()
-        if not maxEggNum or maxEggNum <= 0 then return end
+        -- 1. Identify latest owned zone and its maximum egg number
+        local maxZoneName, maxZoneData = zoneCmds.GetMaxOwnedZone()
+        local zoneDir = maxZoneName and directory.Zones[maxZoneName]
+        local zoneMaxEgg = (zoneDir and zoneDir.MaximumAvailableEgg) or (maxZoneData and maxZoneData.MaximumAvailableEgg) or 1
+        local saveMaxEgg = (save and save.MaximumAvailableEgg) or 1
+        local highestEgg = math.max(zoneMaxEgg, saveMaxEgg, eggCmds.GetHighestEggNumberAvailable() or 1)
 
-        local eggId = eggsUtil.GetIdByNumber(maxEggNum)
-        if not eggId then return end
-
-        local eggData = directory.Eggs[eggId]
-        if not eggData then return end
-
-        -- 1. Unlock egg remotely if locked (no teleport needed)
-        if eggCmds.IsEggLocked(eggId) then
-            local unlocked = eggCmds.RequestUnlock(eggId)
-            if unlocked then
-                print(string.format("[Auto Farm] Unlocked Egg #%d (%s)!", maxEggNum, tostring(eggId)))
-                notifyFlow("Egg Unlocked", string.format("Unlocked Egg #%d: %s", maxEggNum, tostring(eggId)), 3)
+        -- 2. Unlock ALL locked eggs up to the highest egg in the latest zone (remotely, 0 teleport)
+        for eggNum = 1, highestEgg do
+            local eggId = eggsUtil.GetIdByNumber(eggNum)
+            if eggId and eggCmds.IsEggLocked(eggId) then
+                local unlocked = eggCmds.RequestUnlock(eggId)
+                if unlocked then
+                    print(string.format("[Auto Farm] Unlocked Egg #%d (%s) for %s!", eggNum, tostring(eggId), tostring(maxZoneName or "latest zone")))
+                    notifyFlow("Egg Unlocked", string.format("Unlocked Egg #%d: %s", eggNum, tostring(eggId)), 3)
+                end
             end
         end
 
-        -- 2. Hatch egg remotely with maximum hatch count (e.g. 3 eggs at once) without teleporting!
-        if eggCmds.IsUnlocked(eggId) then
+        -- Check directory.Eggs for any eggs with eggNumber <= highestEgg that are locked
+        for eggId, eggDef in pairs(directory.Eggs) do
+            if type(eggDef) == "table" and eggDef.eggNumber and eggDef.eggNumber <= highestEgg then
+                if eggCmds.IsEggLocked(eggId) then
+                    local unlocked = eggCmds.RequestUnlock(eggId)
+                    if unlocked then
+                        print(string.format("[Auto Farm] Unlocked Egg %s (#%d)!", tostring(eggId), eggDef.eggNumber))
+                        notifyFlow("Egg Unlocked", string.format("Unlocked Egg #%d: %s", eggDef.eggNumber, tostring(eggId)), 3)
+                    end
+                end
+            end
+        end
+
+        -- 3. Hatch latest egg for the current zone with maximum hatch count (e.g. 3x) remotely
+        local targetEggNum = zoneMaxEgg or highestEgg
+        local targetEggId = eggsUtil.GetIdByNumber(targetEggNum)
+        if targetEggId and eggCmds.IsUnlocked(targetEggId) then
+            local eggData = directory.Eggs[targetEggId]
             local eggPrice = 0
             pcall(function()
                 eggPrice = calcEggPrice(eggData) or 0
@@ -5739,6 +5778,11 @@ function autoUnlockAndHatchZoneEgg()
 
             local currentCoins = currencyCmds.Get("Coins") or 0
             local maxHatch = 3
+            pcall(function()
+                if save and save.EggHatchCount then
+                    maxHatch = save.EggHatchCount
+                end
+            end)
             pcall(function()
                 local m = eggCmds.GetMaxHatch()
                 if type(m) == "number" and m > 0 then
@@ -5752,10 +5796,10 @@ function autoUnlockAndHatchZoneEgg()
             end
 
             if currentCoins >= eggPrice * hatchAmount and hatchAmount > 0 and eggPrice > 0 then
-                local bought = eggCmds.RequestPurchase(eggId, hatchAmount)
+                local bought = eggCmds.RequestPurchase(targetEggId, hatchAmount)
                 if bought then
-                    print(string.format("[Auto Farm] Remotely Hatched %d x Egg #%d (%s)!", hatchAmount, maxEggNum, tostring(eggId)))
-                    notifyFlow("Egg Hatched", string.format("Hatched %d x %s", hatchAmount, tostring(eggId)), 3)
+                    print(string.format("[Auto Farm] Remotely Hatched %d x Egg #%d (%s) in %s!", hatchAmount, targetEggNum, tostring(targetEggId), tostring(maxZoneName or "latest zone")))
+                    notifyFlow("Egg Hatched", string.format("Hatched %d x %s", hatchAmount, tostring(targetEggId)), 3)
                 end
             end
         end
@@ -6289,6 +6333,9 @@ function runAutoWorldFarm()
     end
 
     teleportToOwnedZone(true)
+    if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false then
+        autoUnlockAndHatchZoneEgg()
+    end
 
     local lastTeleportAt = 0
     local lastUpgradeCheckAt = 0
@@ -6356,6 +6403,7 @@ function runAutoWorldFarm()
                 end
 
                 teleportToOwnedZone(true)
+                task.wait(0.8) -- Wait for zone and egg replication
                 if getgenv().autoWorldConfig.AUTO_BUY_UPGRADES ~= false then
                     autoBuyAreaUpgrades()
                 end
@@ -6374,7 +6422,7 @@ function runAutoWorldFarm()
             lastUpgradeCheckAt = now
             autoBuyAreaUpgrades()
         end
-        if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false and now - lastEggCheckAt >= 15 then
+        if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false and now - lastEggCheckAt >= 2.5 then
             lastEggCheckAt = now
             autoUnlockAndHatchZoneEgg()
         end
@@ -6445,6 +6493,9 @@ function runCurrentStageFarm()
     if closestBreakZone then
         hrp.CFrame = closestBreakZone.CFrame + Vector3.new(0, 10, 0)
     end
+    if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false then
+        autoUnlockAndHatchZoneEgg()
+    end
 
     local lastTeleportAt = 0
     local lastUpgradeCheckAt = 0
@@ -6456,7 +6507,7 @@ function runCurrentStageFarm()
             lastUpgradeCheckAt = now
             autoBuyAreaUpgrades()
         end
-        if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false and now - lastEggCheckAt >= 15 then
+        if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false and now - lastEggCheckAt >= 2.5 then
             lastEggCheckAt = now
             autoUnlockAndHatchZoneEgg()
         end
@@ -6472,7 +6523,7 @@ function runCurrentStageFarm()
             if choice and choice:IsA("Instance") then
                 local id = choice:GetAttribute("BreakableUID") or choice:GetAttribute("BreakableId") or choice.Name
                 setEquippedPetsTarget(id)
-                if now - lastTeleportAt >= (getgenv().breakableFarmConfig.TELEPORT_INTERVAL or 1.2) then
+                if getgenv().breakableFarmConfig.MOVE_TO_BREAKABLES ~= false and getgenv().autoWorldConfig.MOVE_TO_BREAKABLES ~= false and now - lastTeleportAt >= (getgenv().breakableFarmConfig.TELEPORT_INTERVAL or 1.2) then
                     teleportToBreakable(choice)
                     lastTeleportAt = now
                 end
@@ -12466,7 +12517,8 @@ function runAutoBreakableFarm()
         if getgenv().autoWorldConfig.AUTO_BUY_UPGRADES ~= false and now - lastTeleportAt >= 15 then
             autoBuyAreaUpgrades()
         end
-        if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false and now - lastTeleportAt >= 15 then
+        if getgenv().autoWorldConfig.AUTO_HATCH_ZONE_EGG ~= false and now - lastEggCheckAt >= 2.5 then
+            lastEggCheckAt = now
             autoUnlockAndHatchZoneEgg()
         end
         if getgenv().breakableFarmConfig.SWEEP_ORBS ~= false and now - lastTeleportAt >= 6 then
@@ -12475,7 +12527,7 @@ function runAutoBreakableFarm()
 
         local matches = getBreakableFarmMatchingBreakables(zoneInfo, selectedBreakableFarmFilters)
         if #matches > 0 then
-            if now - lastTeleportAt >= (getgenv().breakableFarmConfig.TELEPORT_INTERVAL or 1.2) then
+            if getgenv().breakableFarmConfig.MOVE_TO_BREAKABLES ~= false and getgenv().autoWorldConfig.MOVE_TO_BREAKABLES ~= false and now - lastTeleportAt >= (getgenv().breakableFarmConfig.TELEPORT_INTERVAL or 1.2) then
                 teleportToBreakable(matches[BREAKABLE_RANDOM:NextInteger(1, #matches)])
                 lastTeleportAt = now
             end
