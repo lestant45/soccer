@@ -36,7 +36,7 @@ local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) 
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
-	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 7.5,
+	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 13,
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
 	autoSell = false, autoSellDelay = 30,
 	speedEnabled = false, speedValue = 50,

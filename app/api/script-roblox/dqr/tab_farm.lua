@@ -24,7 +24,7 @@ do
 		local n=tonumber(v); if n then CFG.autoFarmDelay=math.clamp(n,0.05,5); saveConfig() end
 	end)
 
-	createInput(settSec.Content,"Hover Height (studs)","7.5",tostring(CFG.farmHoverHeight or 7.5),2,function(v)
+	createInput(settSec.Content,"Hover Height (studs)","13",tostring(CFG.farmHoverHeight or 13),2,function(v)
 		local n=tonumber(v); if n then CFG.farmHoverHeight=math.clamp(n,2,30); saveConfig() end
 	end)
 
