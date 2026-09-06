@@ -59,7 +59,6 @@ do
 	setupToggle(eTrack,eThumb,"enemyESP",function()
 		task.spawn(function()
 			while CFG.enemyESP do
-				task.wait(2)
 				pcall(function()
 					for i=#_espObjects,1,-1 do
 						local e=_espObjects[i]
@@ -67,15 +66,14 @@ do
 							pcall(function() e:Destroy() end); table.remove(_espObjects,i)
 						end
 					end
-					local ef=Workspace:FindFirstChild("enemies")
-					if not ef then return end
-					for _,enemy in ipairs(ef:GetChildren()) do
-						local eh=enemy:FindFirstChildOfClass("Humanoid")
-						if eh and eh.Health>0 then
-							mkHighlight(enemy,Color3.fromRGB(255,60,60),Color3.fromRGB(255,150,150),0.5,0,"enemy")
+					local enemies = getAllEnemies()
+					for _, item in ipairs(enemies) do
+						if item.model and item.humanoid and item.humanoid.Health > 0 then
+							mkHighlight(item.model, Color3.fromRGB(255,60,60), Color3.fromRGB(255,150,150), 0.5, 0, "enemy")
 						end
 					end
 				end)
+				task.wait(2)
 			end
 		end)
 	end,function()

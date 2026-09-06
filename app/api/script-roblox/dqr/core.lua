@@ -33,6 +33,125 @@ local remotes = ReplicatedStorage:WaitForChild("remotes", 15)
 local function getRemote(name)  return remotes and remotes:FindFirstChild(name) end
 local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) end
 
+-- ═══ COMBAT & ENEMY HELPERS ═══
+local function getWeaponRemote()
+	local char = player.Character
+	if not char then return nil end
+	for _, child in ipairs(char:GetChildren()) do
+		if child:IsA("Accessory") and child:FindFirstChild("Weapon") then
+			local r = child:FindFirstChildOfClass("RemoteEvent")
+			if r then return r end
+		end
+		if child:IsA("Tool") then
+			local r = child:FindFirstChildOfClass("RemoteEvent")
+			if r then return r end
+		end
+	end
+	return nil
+end
+
+local function getAllEnemies()
+	local list = {}
+	local seen = {}
+	local char = player.Character
+
+	local function checkModel(m)
+		if not m or not m:IsA("Model") or seen[m] then return end
+		if m == char or Players:GetPlayerFromCharacter(m) then return end
+		local hum = m:FindFirstChildOfClass("Humanoid")
+		local root = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
+		if hum and hum.Health > 0 and root then
+			seen[m] = true
+			table.insert(list, {
+				model = m,
+				humanoid = hum,
+				rootPart = root,
+				name = m.Name,
+				hp = hum.Health,
+				maxHp = hum.MaxHealth
+			})
+		end
+	end
+
+	-- 1. Scan workspace.dungeon
+	local dungeon = Workspace:FindFirstChild("dungeon")
+	if dungeon then
+		for _, desc in ipairs(dungeon:GetDescendants()) do
+			if desc:IsA("Humanoid") and desc.Parent then
+				checkModel(desc.Parent)
+			end
+		end
+	end
+
+	-- 2. Scan workspace.enemies & any enemyFolder
+	for _, desc in ipairs(Workspace:GetChildren()) do
+		if desc:IsA("Folder") and (desc.Name == "enemies" or desc.Name == "enemyFolder" or desc.Name == "enemyPool") then
+			for _, d in ipairs(desc:GetDescendants()) do
+				if d:IsA("Humanoid") and d.Parent then
+					checkModel(d.Parent)
+				end
+			end
+		end
+	end
+
+	-- 3. Fallback scan for any enemyFolder descendant in Workspace
+	if #list == 0 then
+		for _, desc in ipairs(Workspace:GetDescendants()) do
+			if desc:IsA("Humanoid") and desc.Parent and desc.Health > 0 then
+				local p = desc.Parent
+				if p:FindFirstAncestor("enemyFolder") or p:FindFirstAncestor("enemies") or p:FindFirstAncestor("dungeon") then
+					checkModel(p)
+				end
+			end
+		end
+	end
+
+	return list
+end
+
+local function attackTarget(enemyData)
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp or not enemyData or not enemyData.rootPart then return end
+
+	local ePos = enemyData.rootPart.Position
+
+	-- Position player in front of enemy facing them
+	if CFG.farmTeleport then
+		hrp.CFrame = CFrame.lookAt(ePos + Vector3.new(0, 1, 2.5), ePos)
+	end
+
+	-- Fire weapon swing
+	local wRemote = getWeaponRemote()
+	if wRemote then
+		pcall(function() wRemote:FireServer() end)
+	end
+	local wu = getRemote("weaponUsed")
+	if wu then
+		pcall(function() wu:FireServer() end)
+	end
+
+	-- Trigger ability spells from Backpack
+	pcall(function()
+		local bp = player:FindFirstChild("Backpack")
+		if bp then
+			for _, tool in ipairs(bp:GetChildren()) do
+				if tool:IsA("Tool") then
+					local slot = tool:FindFirstChild("abilitySlot")
+					local cd = tool:FindFirstChild("cooldown")
+					if slot and (not cd or cd.Value <= 0) then
+						local le = tool:FindFirstChild("localEvent")
+						if le then le:Fire() end
+						local au = getRemote("abilityUsed")
+						if au then au:FireServer(slot.Value, tool) end
+					end
+				end
+			end
+		end
+	end)
+end
+
+
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {

@@ -31,17 +31,29 @@ do
 	setupToggle(autoBossTrack,autoBossThumb,"autoBoss",function()
 		task.spawn(function()
 			while CFG.autoBoss do
-				-- Create lobby
 				pcall(function()
-					local r=getRemoteF("createBossLobby"); if r then r:InvokeServer(CFG.bossTier,false) end
+					local enemies = getAllEnemies()
+					if #enemies > 0 then
+						for _, b in ipairs(enemies) do
+							if not CFG.autoBoss then break end
+							while CFG.autoBoss and b.humanoid and b.humanoid.Health > 0 and b.model.Parent do
+								attackTarget(b)
+								task.wait(CFG.autoFarmDelay or 0.1)
+							end
+							if b.humanoid and b.humanoid.Health <= 0 then
+								STATS.bossesKilled += 1
+							end
+						end
+					else
+						local r = getRemoteF("createBossLobby")
+						if r then r:InvokeServer(CFG.bossTier, false) end
+						task.wait(1.5)
+						local sr = getRemote("startBossRaid")
+						if sr then sr:FireServer() end
+						task.wait(2)
+					end
 				end)
-				task.wait(2)
-				-- Start raid
-				pcall(function()
-					local r=getRemote("startBossRaid"); if r then r:FireServer() end
-				end)
-				task.wait(30) -- wait for boss to end
-				STATS.bossesKilled+=1
+				task.wait(0.3)
 			end
 		end)
 	end,nil)

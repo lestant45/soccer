@@ -42,25 +42,27 @@ do
 					local char=player.Character
 					local hrp=char and char:FindFirstChild("HumanoidRootPart")
 					if not char or not hrp then return end
-					local ef=Workspace:FindFirstChild("enemies")
-					if not ef then task.wait(1); return end
-					for _,enemy in ipairs(ef:GetChildren()) do
+					local enemies = getAllEnemies()
+					if #enemies == 0 then
+						task.wait(0.5)
+						return
+					end
+					for _, enemy in ipairs(enemies) do
 						if not farmActive or not CFG.autoFarm then break end
-						local eh=enemy:FindFirstChildOfClass("Humanoid")
-						if not (eh and eh.Health>0) then continue end
-						local erp=enemy:FindFirstChild("HumanoidRootPart") or enemy:FindFirstChildOfClass("BasePart")
-						if not erp then continue end
-						if CFG.farmTeleport then pcall(function() hrp.CFrame=erp.CFrame*CFrame.new(0,0,-3.5) end) end
-						pcall(function() local wr=getRemote("weaponUsed"); if wr then wr:FireServer(enemy,erp.Position) end end)
-						pcall(function() local ar=getRemote("abilityUsed"); if ar then ar:FireServer() end end)
-						if eh.Health<=0 then
-							STATS.enemiesKilled+=1
-							statusLbl.Text="Status: <font color='#00d4a8'>Active</font>   Enemies Killed: "..STATS.enemiesKilled
+						local eh = enemy.humanoid
+						local erp = enemy.rootPart
+						if not (eh and eh.Health > 0 and erp) then continue end
+						while farmActive and CFG.autoFarm and eh.Health > 0 and enemy.model.Parent do
+							attackTarget(enemy)
+							task.wait(CFG.autoFarmDelay or 0.1)
 						end
-						task.wait(CFG.autoFarmDelay)
+						if eh.Health <= 0 then
+							STATS.enemiesKilled += 1
+							statusLbl.Text = "Status: <font color='#00d4a8'>Active</font>   Enemies Killed: "..STATS.enemiesKilled
+						end
 					end
 				end)
-				task.wait(0.4)
+				task.wait(0.2)
 			end
 		end)
 	end,function()
