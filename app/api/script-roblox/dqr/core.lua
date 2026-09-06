@@ -154,7 +154,7 @@ local function attackTarget(enemyData)
 		hrp.AssemblyLinearVelocity = Vector3.zero
 	end
 
-	-- Find weapon and expand hitbox towards enemy below
+	-- Find weapon
 	local wep = nil
 	for _, child in ipairs(char:GetChildren()) do
 		if (child:IsA("Accessory") and child:FindFirstChild("Weapon")) or child:IsA("Tool") then
@@ -162,15 +162,7 @@ local function attackTarget(enemyData)
 			break
 		end
 	end
-
 	local hitBox = wep and wep:FindFirstChild("hitBox")
-	if hitBox then
-		pcall(function()
-			hitBox.Size = Vector3.new(16, 24, 16)
-			hitBox.CanCollide = false
-			hitBox.Transparency = 1
-		end)
-	end
 
 	-- Fire weapon swing
 	local wRemote = getWeaponRemote()
