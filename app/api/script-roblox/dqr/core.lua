@@ -36,7 +36,7 @@ local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) 
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
-	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 6,
+	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 4.5,
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
 	autoSell = false, autoSellDelay = 30,
 	speedEnabled = false, speedValue = 50,
@@ -202,11 +202,11 @@ local function attackTarget(enemyData)
 	if peaceful and peaceful.Value == true then return end
 
 	local ePos = enemyData.rootPart.Position
-	local hoverHeight = tonumber(CFG.farmHoverHeight) or 7.5
+	local hoverHeight = tonumber(CFG.farmHoverHeight) or 4.5
 
-	-- Position player hovering above enemy outside melee reach
+	-- Position player hovering safely above and slightly behind enemy (out of enemy melee reach of 3 studs)
 	if CFG.farmTeleport then
-		-- Noclip character to prevent physics snagging on doors/walls
+		-- Noclip character to prevent physics snagging
 		for _, p in ipairs(char:GetDescendants()) do
 			if p:IsA("BasePart") and p.CanCollide then
 				p.CanCollide = false
@@ -222,7 +222,10 @@ local function attackTarget(enemyData)
 			bv.Parent = hrp
 		end
 
-		local targetPos = ePos + Vector3.new(0, hoverHeight, 0)
+		-- Offset slightly behind enemy's look direction and above, avoiding gimbal lock
+		local lookDir = enemyData.rootPart.CFrame.LookVector
+		local offset = -lookDir * 1.5 + Vector3.new(0, hoverHeight, 0)
+		local targetPos = ePos + offset
 		local targetCF = CFrame.lookAt(targetPos, ePos)
 		hrp.CFrame = targetCF
 		pcall(function() char:PivotTo(targetCF) end)
@@ -247,19 +250,34 @@ local function attackTarget(enemyData)
 		end
 	end
 
-	-- Fire weapon swing (pure basic attack / left click)
+	-- Ensure busyCasting is cleared
 	local busyCasting = char:FindFirstChild("busyCasting")
-	if not busyCasting or busyCasting.Value == false then
-		if wep then
-			local wRemote = wep:FindFirstChildOfClass("RemoteEvent") or wep:FindFirstChild("swing")
-			if wRemote then
-				pcall(function() wRemote:FireServer() end)
-			end
-			local wu = getRemote("weaponUsed")
-			if wu then
-				pcall(function() wu:FireServer() end)
-			end
+	if busyCasting and busyCasting.Value == true then
+		pcall(function() busyCasting.Value = false end)
+	end
+
+	-- Fire weapon swing (pure basic attack / left click)
+	if wep then
+		local wRemote = wep:FindFirstChildOfClass("RemoteEvent") or wep:FindFirstChild("swing")
+		if wRemote then
+			pcall(function() wRemote:FireServer() end)
 		end
+		local wu = getRemote("weaponUsed")
+		if wu then
+			pcall(function() wu:FireServer() end)
+		end
+
+		-- Play visual swing animation (like PC left click)
+		pcall(function()
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			local anim = wep:FindFirstChild("swing1") or wep:FindFirstChild("swing2")
+			if hum and anim then
+				local track = hum:LoadAnimation(anim)
+				if track and not track.IsPlaying then
+					track:Play()
+				end
+			end
+		end)
 	end
 end
 
