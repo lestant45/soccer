@@ -109,16 +109,67 @@ local function getAllEnemies()
 	return list
 end
 
+local function getNearestEnemy()
+	local enemies = getAllEnemies()
+	if #enemies == 0 then return nil end
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return enemies[1] end
+	table.sort(enemies, function(a, b)
+		local distA = (a.rootPart.Position - hrp.Position).Magnitude
+		local distB = (b.rootPart.Position - hrp.Position).Magnitude
+		return distA < distB
+	end)
+	return enemies[1]
+end
+
+local function stopFarmFly()
+	pcall(function()
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local bv = hrp and hrp:FindFirstChild("HipHubFarmFly")
+		if bv then bv:Destroy() end
+	end)
+end
+
 local function attackTarget(enemyData)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hrp or not enemyData or not enemyData.rootPart then return end
 
 	local ePos = enemyData.rootPart.Position
+	local hoverHeight = CFG.farmHoverHeight or 7.5
 
-	-- Position player in front of enemy facing them
+	-- Position player hovering above enemy outside melee reach
 	if CFG.farmTeleport then
-		hrp.CFrame = CFrame.lookAt(ePos + Vector3.new(0, 1, 2.5), ePos)
+		local bv = hrp:FindFirstChild("HipHubFarmFly")
+		if not bv then
+			bv = Instance.new("BodyVelocity")
+			bv.Name = "HipHubFarmFly"
+			bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+			bv.Velocity = Vector3.zero
+			bv.Parent = hrp
+		end
+		hrp.CFrame = CFrame.lookAt(ePos + Vector3.new(0, hoverHeight, 0), ePos)
+		hrp.AssemblyLinearVelocity = Vector3.zero
+	end
+
+	-- Find weapon and expand hitbox towards enemy below
+	local wep = nil
+	for _, child in ipairs(char:GetChildren()) do
+		if (child:IsA("Accessory") and child:FindFirstChild("Weapon")) or child:IsA("Tool") then
+			wep = child
+			break
+		end
+	end
+
+	local hitBox = wep and wep:FindFirstChild("hitBox")
+	if hitBox then
+		pcall(function()
+			hitBox.Size = Vector3.new(16, 24, 16)
+			hitBox.CanCollide = false
+			hitBox.Transparency = 1
+		end)
 	end
 
 	-- Fire weapon swing
@@ -129,6 +180,14 @@ local function attackTarget(enemyData)
 	local wu = getRemote("weaponUsed")
 	if wu then
 		pcall(function() wu:FireServer() end)
+	end
+
+	-- Fire touch interest if supported
+	if hitBox and enemyData.rootPart and firetouchinterest then
+		pcall(function()
+			firetouchinterest(hitBox, enemyData.rootPart, 0)
+			firetouchinterest(hitBox, enemyData.rootPart, 1)
+		end)
 	end
 
 	-- Trigger ability spells from Backpack
@@ -155,7 +214,7 @@ end
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
-	autoFarm = false, autoFarmDelay = 0.1, farmTeleport = true,
+	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 7.5,
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
 	autoSell = false, autoSellDelay = 30,
 	speedEnabled = false, speedValue = 50,
@@ -195,6 +254,7 @@ local function cleanup()
 	for _, c in pairs(_connections) do pcall(function() c:Disconnect() end) end
 	for _, e in pairs(_espObjects)  do pcall(function() e:Destroy()    end) end
 	_connections, _espObjects = {}, {}
+	stopFarmFly()
 	for _, k in ipairs({"autoFarm","autoSell","speedEnabled","jumpEnabled","noclipEnabled","infJump","playerESP","enemyESP","fpsBooster","antiAfk","bossAutoReady","autoReplay"}) do
 		CFG[k] = false
 	end

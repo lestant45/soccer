@@ -20,11 +20,15 @@ do
 	local settSec = createSection(frame,"Farm Settings",2,true)
 	applyList(settSec.Content,6)
 
-	createInput(settSec.Content,"Kill Delay (s)","0.1",tostring(CFG.autoFarmDelay),1,function(v)
-		local n=tonumber(v); if n then CFG.autoFarmDelay=math.clamp(n,0,5); saveConfig() end
+	createInput(settSec.Content,"Kill Delay (s)","0.15",tostring(CFG.autoFarmDelay or 0.15),1,function(v)
+		local n=tonumber(v); if n then CFG.autoFarmDelay=math.clamp(n,0.05,5); saveConfig() end
 	end)
 
-	local _,telTrack,telThumb = createToggle(settSec.Content,"Teleport to Enemy",2)
+	createInput(settSec.Content,"Hover Height (studs)","7.5",tostring(CFG.farmHoverHeight or 7.5),2,function(v)
+		local n=tonumber(v); if n then CFG.farmHoverHeight=math.clamp(n,2,30); saveConfig() end
+	end)
+
+	local _,telTrack,telThumb = createToggle(settSec.Content,"Fly Above Enemy",3)
 	setupToggle(telTrack,telThumb,"farmTeleport",nil,nil)
 
 	-- Control section
@@ -39,34 +43,56 @@ do
 		task.spawn(function()
 			while farmActive and CFG.autoFarm do
 				pcall(function()
-					local char=player.Character
-					local hrp=char and char:FindFirstChild("HumanoidRootPart")
+					local char = player.Character
+					local hrp = char and char:FindFirstChild("HumanoidRootPart")
 					if not char or not hrp then return end
-					local enemies = getAllEnemies()
-					if #enemies == 0 then
+
+					-- Check if dungeon needs to start (click green START button)
+					local sb = player.PlayerGui:FindFirstChild("startButton")
+					if sb and sb.Enabled then
+						local r = getRemote("changeStartValue")
+						if r then r:FireServer() end
+					end
+
+					local target = getNearestEnemy()
+					if not target then
+						stopFarmFly()
+						-- If in dungeon with no enemies, advance room checkpoint/startPart
+						local dungeon = Workspace:FindFirstChild("dungeon")
+						if dungeon then
+							for _, room in ipairs(dungeon:GetChildren()) do
+								if room.Name ~= "initialRoom" then
+									local cp = room:FindFirstChild("checkPoint") or room:FindFirstChild("startPart")
+									if cp and (cp.Position - hrp.Position).Magnitude > 25 then
+										hrp.CFrame = cp.CFrame + Vector3.new(0, 4, 0)
+										break
+									end
+								end
+							end
+						end
 						task.wait(0.5)
 						return
 					end
-					for _, enemy in ipairs(enemies) do
-						if not farmActive or not CFG.autoFarm then break end
-						local eh = enemy.humanoid
-						local erp = enemy.rootPart
-						if not (eh and eh.Health > 0 and erp) then continue end
-						while farmActive and CFG.autoFarm and eh.Health > 0 and enemy.model.Parent do
-							attackTarget(enemy)
-							task.wait(CFG.autoFarmDelay or 0.1)
-						end
-						if eh.Health <= 0 then
-							STATS.enemiesKilled += 1
-							statusLbl.Text = "Status: <font color='#00d4a8'>Active</font>   Enemies Killed: "..STATS.enemiesKilled
-						end
+
+					-- Attack nearest target while hovering above it
+					local eh = target.humanoid
+					while farmActive and CFG.autoFarm and eh and eh.Health > 0 and target.model.Parent do
+						attackTarget(target)
+						task.wait(CFG.autoFarmDelay or 0.15)
+					end
+
+					if eh and eh.Health <= 0 then
+						STATS.enemiesKilled += 1
+						statusLbl.Text = "Status: <font color='#00d4a8'>Active</font>   Enemies Killed: "..STATS.enemiesKilled
 					end
 				end)
-				task.wait(0.2)
+				task.wait(0.08)
 			end
+			stopFarmFly()
 		end)
 	end,function()
-		farmActive=false
+		farmActive = false
+		stopFarmFly()
 		statusLbl.Text="Status: <font color='#ff4d4d'>Inactive</font>   Enemies Killed: "..STATS.enemiesKilled
 	end)
 
