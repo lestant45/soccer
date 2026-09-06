@@ -254,7 +254,9 @@ export async function GET(request: NextRequest) {
 
     for (const file of moduleFiles) {
       try {
-        modules[file] = fs.readFileSync(path.join(dqrDir, file), "utf8");
+        modules[file] = fs
+          .readFileSync(path.join(dqrDir, file), "utf8")
+          .replace(/^\uFEFF/, "");
       } catch {
         console.error(`Failed to read DQR module: ${file}`);
         return new NextResponse(

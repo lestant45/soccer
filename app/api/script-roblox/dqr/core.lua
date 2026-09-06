@@ -1,4 +1,4 @@
-﻿-- ⚔️ HipHub DQR — Core (Bootstrap + UI Helpers + Tab System)
+-- ⚔️ HipHub DQR — Core (Bootstrap + UI Helpers + Tab System)
 -- Game: [Odin Reincarnation] Dungeon Quest Reborn | PlaceId: 77649408247578
 
 repeat task.wait() until game:IsLoaded()
