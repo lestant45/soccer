@@ -28,7 +28,11 @@ do
 		local n=tonumber(v); if n then CFG.farmHoverHeight=math.clamp(n,2,30); saveConfig() end
 	end)
 
-	local _,posTrack,posThumb = createToggle(settSec.Content,"Grounded Backstab (Safe)",3)
+	createInput(settSec.Content,"Tween Speed (studs/s)","45",tostring(CFG.tweenSpeed or 45),3,function(v)
+		local n=tonumber(v); if n then CFG.tweenSpeed=math.clamp(n,10,150); saveConfig() end
+	end)
+
+	local _,posTrack,posThumb = createToggle(settSec.Content,"Grounded Backstab (Safe)",4)
 	local isBehind = (CFG.farmPositionMode or "behind") == "behind"
 	if isBehind then
 		posTrack.BackgroundColor3 = C.toggleOn
@@ -48,11 +52,11 @@ do
 		saveConfig()
 	end)
 
-	local _,telTrack,telThumb = createToggle(settSec.Content,"Teleport to Enemy",4)
+	local _,telTrack,telThumb = createToggle(settSec.Content,"Smooth Tween Movement",5)
 	setupToggle(telTrack,telThumb,"farmTeleport",nil,nil)
 
 	-- Control section
-	local ctrlSec = createSection(frame,"Farm Control",4,true)
+	local ctrlSec = createSection(frame,"Farm Control",6,true)
 	applyList(ctrlSec.Content,6)
 
 	local _,farmTrack,farmThumb = createToggle(ctrlSec.Content,"Auto Farm Enemies",1)
@@ -79,16 +83,16 @@ do
 						local allE = getAllEnemies()
 						if #allE == 0 then
 							stopFarmFly()
-							-- If in dungeon with no enemies at all, advance room checkpoint/startPart
+							stopFarmTween()
+							-- If in dungeon with no enemies at all, smoothly advance to room checkpoint/startPart
 							local dungeon = Workspace:FindFirstChild("dungeon")
 							if dungeon then
 								for _, room in ipairs(dungeon:GetChildren()) do
 									if room.Name ~= "initialRoom" then
 										local cp = room:FindFirstChild("checkPoint") or room:FindFirstChild("startPart")
-										if cp and (cp.Position - hrp.Position).Magnitude > 25 then
-											local targetCF = cp.CFrame + Vector3.new(0, 4, 0)
-											hrp.CFrame = targetCF
-											pcall(function() char:PivotTo(targetCF) end)
+										if cp and (cp.Position - hrp.Position).Magnitude > 15 then
+											local targetCF = cp.CFrame + Vector3.new(0, 3, 0)
+											tweenTo(targetCF, tonumber(CFG.tweenSpeed) or 45)
 											break
 										end
 									end
@@ -118,10 +122,12 @@ do
 				task.wait(0.08)
 			end
 			stopFarmFly()
+			stopFarmTween()
 		end)
 	end,function()
 		farmActive = false
 		stopFarmFly()
+		stopFarmTween()
 		statusLbl.Text="Status: <font color='#ff4d4d'>Inactive</font>   Enemies Killed: "..STATS.enemiesKilled
 	end)
 

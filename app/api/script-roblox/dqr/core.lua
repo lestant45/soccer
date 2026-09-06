@@ -38,6 +38,7 @@ local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
 	autoFarm = false, autoFarmDelay = 0.25, farmTeleport = true, farmHoverHeight = 4.5,
 	farmPositionMode = "behind", -- "behind" (grounded backstab, safe from anti-cheat) or "hover"
+	tweenSpeed = 45, -- human-like smooth travel speed (studs/s)
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
 	autoSell = false, autoSellDelay = 30,
 	speedEnabled = false, speedValue = 50,
@@ -95,11 +96,58 @@ local function cleanup()
 	for _, e in pairs(_espObjects)  do pcall(function() e:Destroy()    end) end
 	_connections, _espObjects = {}, {}
 	stopFarmFly()
+	stopFarmTween()
 	for _, k in ipairs({"autoFarm","autoSell","speedEnabled","jumpEnabled","noclipEnabled","infJump","playerESP","enemyESP","fpsBooster","antiAfk","bossAutoReady","autoReplay"}) do
 		CFG[k] = false
 	end
 end
 if getgenv then getgenv().DQR_Unload = cleanup end
+
+-- ═══ SMOOTH TWEEN & MOVEMENT SYSTEM ═══
+local activeTween = nil
+local function stopFarmTween()
+	if activeTween then
+		pcall(function() activeTween:Cancel() end)
+		activeTween = nil
+	end
+end
+
+local function tweenTo(targetCF, speed)
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
+
+	stopFarmTween()
+
+	local dist = (hrp.Position - targetCF.Position).Magnitude
+	if dist < 1.5 then
+		hrp.CFrame = targetCF
+		return true
+	end
+
+	local moveSpeed = speed or (tonumber(CFG.tweenSpeed) or 45)
+	local duration = math.clamp(dist / moveSpeed, 0.05, 5)
+
+	local ti = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+	activeTween = TweenService:Create(hrp, ti, { CFrame = targetCF })
+	activeTween:Play()
+
+	local completed = false
+	local conn
+	conn = activeTween.Completed:Connect(function()
+		completed = true
+		if conn then conn:Disconnect() end
+	end)
+
+	local t0 = os.clock()
+	while not completed and (os.clock() - t0) < duration + 0.1 do
+		task.wait(0.03)
+		if not activeTween then break end
+	end
+	if conn then conn:Disconnect() end
+	activeTween = nil
+	return true
+end
 
 -- ═══ COMBAT & ENEMY HELPERS ═══
 local function getWeaponRemote()
@@ -219,13 +267,21 @@ local function attackTarget(enemyData)
 				end
 			end
 
-			-- Position 2.2 studs behind enemy facing the enemy's back
+			-- Target: 2.2 studs behind enemy facing the enemy's back
 			local enemyCF = enemyData.rootPart.CFrame
 			local targetCF = enemyCF * CFrame.new(0, 0, 2.2)
-			hrp.CFrame = targetCF
-			pcall(function() char:PivotTo(targetCF) end)
-			hrp.AssemblyLinearVelocity = Vector3.zero
-			hrp.AssemblyAngularVelocity = Vector3.zero
+			local dist = (hrp.Position - targetCF.Position).Magnitude
+
+			if dist > 3.5 then
+				-- Smooth tween movement to enemy (human-like, no instant blink kick)
+				tweenTo(targetCF, tonumber(CFG.tweenSpeed) or 45)
+			else
+				-- Close enough: lock position smoothly
+				hrp.CFrame = targetCF
+				pcall(function() char:PivotTo(targetCF) end)
+				hrp.AssemblyLinearVelocity = Vector3.zero
+				hrp.AssemblyAngularVelocity = Vector3.zero
+			end
 		else
 			-- HOVER ABOVE (air)
 			for _, p in ipairs(char:GetDescendants()) do
@@ -247,10 +303,16 @@ local function attackTarget(enemyData)
 			local offset = -lookDir * 1.5 + Vector3.new(0, hoverHeight, 0)
 			local targetPos = ePos + offset
 			local targetCF = CFrame.lookAt(targetPos, ePos)
-			hrp.CFrame = targetCF
-			pcall(function() char:PivotTo(targetCF) end)
-			hrp.AssemblyLinearVelocity = Vector3.zero
-			hrp.AssemblyAngularVelocity = Vector3.zero
+			local dist = (hrp.Position - targetCF.Position).Magnitude
+
+			if dist > 3.5 then
+				tweenTo(targetCF, tonumber(CFG.tweenSpeed) or 45)
+			else
+				hrp.CFrame = targetCF
+				pcall(function() char:PivotTo(targetCF) end)
+				hrp.AssemblyLinearVelocity = Vector3.zero
+				hrp.AssemblyAngularVelocity = Vector3.zero
+			end
 		end
 	end
 
