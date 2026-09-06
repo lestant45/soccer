@@ -24,7 +24,7 @@ do
 		local n=tonumber(v); if n then CFG.autoFarmDelay=math.clamp(n,0.05,5); saveConfig() end
 	end)
 
-	createInput(settSec.Content,"Hover Height (studs)","13",tostring(CFG.farmHoverHeight or 13),2,function(v)
+	createInput(settSec.Content,"Hover Height (studs)","6",tostring(CFG.farmHoverHeight or 6),2,function(v)
 		local n=tonumber(v); if n then CFG.farmHoverHeight=math.clamp(n,2,30); saveConfig() end
 	end)
 
@@ -55,24 +55,27 @@ do
 
 					local target = getNearestEnemy()
 					if not target then
-						stopFarmFly()
 						statusLbl.Text = "Status: <font color='#ffaa00'>Searching enemies...</font>   Enemies Killed: "..STATS.enemiesKilled
-						-- If in dungeon with no enemies, advance room checkpoint/startPart
-						local dungeon = Workspace:FindFirstChild("dungeon")
-						if dungeon then
-							for _, room in ipairs(dungeon:GetChildren()) do
-								if room.Name ~= "initialRoom" then
-									local cp = room:FindFirstChild("checkPoint") or room:FindFirstChild("startPart")
-									if cp and (cp.Position - hrp.Position).Magnitude > 25 then
-										local targetCF = cp.CFrame + Vector3.new(0, 4, 0)
-										hrp.CFrame = targetCF
-										pcall(function() char:PivotTo(targetCF) end)
-										break
+						local allE = getAllEnemies()
+						if #allE == 0 then
+							stopFarmFly()
+							-- If in dungeon with no enemies at all, advance room checkpoint/startPart
+							local dungeon = Workspace:FindFirstChild("dungeon")
+							if dungeon then
+								for _, room in ipairs(dungeon:GetChildren()) do
+									if room.Name ~= "initialRoom" then
+										local cp = room:FindFirstChild("checkPoint") or room:FindFirstChild("startPart")
+										if cp and (cp.Position - hrp.Position).Magnitude > 25 then
+											local targetCF = cp.CFrame + Vector3.new(0, 4, 0)
+											hrp.CFrame = targetCF
+											pcall(function() char:PivotTo(targetCF) end)
+											break
+										end
 									end
 								end
 							end
 						end
-						task.wait(0.4)
+						task.wait(0.3)
 						return
 					end
 

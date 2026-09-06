@@ -36,7 +36,7 @@ local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) 
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
-	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 13,
+	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 6,
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
 	autoSell = false, autoSellDelay = 30,
 	speedEnabled = false, speedValue = 50,
@@ -247,7 +247,7 @@ local function attackTarget(enemyData)
 		end
 	end
 
-	-- Fire weapon swing if not busy casting
+	-- Fire weapon swing (pure basic attack / left click)
 	local busyCasting = char:FindFirstChild("busyCasting")
 	if not busyCasting or busyCasting.Value == false then
 		if wep then
@@ -261,35 +261,6 @@ local function attackTarget(enemyData)
 			end
 		end
 	end
-
-	local hitBox = wep and wep:FindFirstChild("hitBox")
-	-- Fire touch interest if supported
-	if hitBox and enemyData.rootPart and firetouchinterest then
-		pcall(function()
-			firetouchinterest(hitBox, enemyData.rootPart, 0)
-			firetouchinterest(hitBox, enemyData.rootPart, 1)
-		end)
-	end
-
-	-- Trigger ability spells from Backpack (Q and E)
-	pcall(function()
-		local bp = player:FindFirstChild("Backpack")
-		if bp then
-			for _, slotKey in ipairs({"q", "e"}) do
-				for _, tool in ipairs(bp:GetChildren()) do
-					local slot = tool:FindFirstChild("abilitySlot")
-					local cd = tool:FindFirstChild("cooldown")
-					if slot and slot.Value == slotKey and (not cd or cd.Value <= 0) then
-						local le = tool:FindFirstChild("localEvent")
-						if le then le:Fire() end
-						local au = getRemote("abilityUsed")
-						if au then au:FireServer(slotKey, tool) end
-						break
-					end
-				end
-			end
-		end
-	end)
 end
 
 -- ═══ DESIGN TOKENS ═══
