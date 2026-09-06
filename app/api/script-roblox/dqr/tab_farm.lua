@@ -20,15 +20,35 @@ do
 	local settSec = createSection(frame,"Farm Settings",2,true)
 	applyList(settSec.Content,6)
 
-	createInput(settSec.Content,"Kill Delay (s)","0.15",tostring(CFG.autoFarmDelay or 0.15),1,function(v)
-		local n=tonumber(v); if n then CFG.autoFarmDelay=math.clamp(n,0.05,5); saveConfig() end
+	createInput(settSec.Content,"Attack Delay (s)","0.25",tostring(CFG.autoFarmDelay or 0.25),1,function(v)
+		local n=tonumber(v); if n then CFG.autoFarmDelay=math.clamp(n,0.1,5); saveConfig() end
 	end)
 
 	createInput(settSec.Content,"Hover Height (studs)","4.5",tostring(CFG.farmHoverHeight or 4.5),2,function(v)
 		local n=tonumber(v); if n then CFG.farmHoverHeight=math.clamp(n,2,30); saveConfig() end
 	end)
 
-	local _,telTrack,telThumb = createToggle(settSec.Content,"Fly Above Enemy",3)
+	local _,posTrack,posThumb = createToggle(settSec.Content,"Grounded Backstab (Safe)",3)
+	local isBehind = (CFG.farmPositionMode or "behind") == "behind"
+	if isBehind then
+		posTrack.BackgroundColor3 = C.toggleOn
+		posThumb.Position = UDim2.new(1,-17,0.5,-7)
+	end
+	posTrack.MouseButton1Click:Connect(function()
+		isBehind = not isBehind
+		if isBehind then
+			posTrack.BackgroundColor3 = C.toggleOn
+			posThumb.Position = UDim2.new(1,-17,0.5,-7)
+			CFG.farmPositionMode = "behind"
+		else
+			posTrack.BackgroundColor3 = C.toggleOff
+			posThumb.Position = UDim2.new(0,3,0.5,-7)
+			CFG.farmPositionMode = "hover"
+		end
+		saveConfig()
+	end)
+
+	local _,telTrack,telThumb = createToggle(settSec.Content,"Teleport to Enemy",4)
 	setupToggle(telTrack,telThumb,"farmTeleport",nil,nil)
 
 	-- Control section

@@ -36,7 +36,8 @@ local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) 
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
-	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 4.5,
+	autoFarm = false, autoFarmDelay = 0.25, farmTeleport = true, farmHoverHeight = 4.5,
+	farmPositionMode = "behind", -- "behind" (grounded backstab, safe from anti-cheat) or "hover"
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
 	autoSell = false, autoSellDelay = 30,
 	speedEnabled = false, speedValue = 50,
@@ -204,33 +205,53 @@ local function attackTarget(enemyData)
 	local ePos = enemyData.rootPart.Position
 	local hoverHeight = tonumber(CFG.farmHoverHeight) or 4.5
 
-	-- Position player hovering safely above and slightly behind enemy (out of enemy melee reach of 3 studs)
+	-- Position player safely relative to enemy
 	if CFG.farmTeleport then
-		-- Noclip character to prevent physics snagging
-		for _, p in ipairs(char:GetDescendants()) do
-			if p:IsA("BasePart") and p.CanCollide then
-				p.CanCollide = false
+		if (CFG.farmPositionMode or "behind") == "behind" then
+			-- GROUNDED BEHIND ENEMY (Safe from anti-cheat & out of enemy front melee cone)
+			local bv = hrp:FindFirstChild("HipHubFarmFly")
+			if bv then bv:Destroy() end
+
+			-- Keep collisions normal so player stays grounded
+			for _, p in ipairs(char:GetDescendants()) do
+				if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+					p.CanCollide = true
+				end
 			end
-		end
 
-		local bv = hrp:FindFirstChild("HipHubFarmFly")
-		if not bv then
-			bv = Instance.new("BodyVelocity")
-			bv.Name = "HipHubFarmFly"
-			bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-			bv.Velocity = Vector3.zero
-			bv.Parent = hrp
-		end
+			-- Position 2.2 studs behind enemy facing the enemy's back
+			local enemyCF = enemyData.rootPart.CFrame
+			local targetCF = enemyCF * CFrame.new(0, 0, 2.2)
+			hrp.CFrame = targetCF
+			pcall(function() char:PivotTo(targetCF) end)
+			hrp.AssemblyLinearVelocity = Vector3.zero
+			hrp.AssemblyAngularVelocity = Vector3.zero
+		else
+			-- HOVER ABOVE (air)
+			for _, p in ipairs(char:GetDescendants()) do
+				if p:IsA("BasePart") and p.CanCollide then
+					p.CanCollide = false
+				end
+			end
 
-		-- Offset slightly behind enemy's look direction and above, avoiding gimbal lock
-		local lookDir = enemyData.rootPart.CFrame.LookVector
-		local offset = -lookDir * 1.5 + Vector3.new(0, hoverHeight, 0)
-		local targetPos = ePos + offset
-		local targetCF = CFrame.lookAt(targetPos, ePos)
-		hrp.CFrame = targetCF
-		pcall(function() char:PivotTo(targetCF) end)
-		hrp.AssemblyLinearVelocity = Vector3.zero
-		hrp.AssemblyAngularVelocity = Vector3.zero
+			local bv = hrp:FindFirstChild("HipHubFarmFly")
+			if not bv then
+				bv = Instance.new("BodyVelocity")
+				bv.Name = "HipHubFarmFly"
+				bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+				bv.Velocity = Vector3.zero
+				bv.Parent = hrp
+			end
+
+			local lookDir = enemyData.rootPart.CFrame.LookVector
+			local offset = -lookDir * 1.5 + Vector3.new(0, hoverHeight, 0)
+			local targetPos = ePos + offset
+			local targetCF = CFrame.lookAt(targetPos, ePos)
+			hrp.CFrame = targetCF
+			pcall(function() char:PivotTo(targetCF) end)
+			hrp.AssemblyLinearVelocity = Vector3.zero
+			hrp.AssemblyAngularVelocity = Vector3.zero
+		end
 	end
 
 	-- Find weapon accessory (as in official UIS script)
