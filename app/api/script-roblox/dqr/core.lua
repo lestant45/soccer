@@ -33,6 +33,73 @@ local remotes = ReplicatedStorage:WaitForChild("remotes", 15)
 local function getRemote(name)  return remotes and remotes:FindFirstChild(name) end
 local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) end
 
+-- ═══ CONFIG ═══
+local CONFIG_PATH = "HipHub/dqr/config.json"
+local CFG = {
+	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 7.5,
+	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
+	autoSell = false, autoSellDelay = 30,
+	speedEnabled = false, speedValue = 50,
+	jumpEnabled = false, jumpValue = 100,
+	noclipEnabled = false, infJump = false,
+	playerESP = false, enemyESP = false, espDistance = 500,
+	antiAfk = true, fpsBooster = false,
+	autoReplay = false, chatBypass = false, dropNotif = false,
+}
+
+local function saveConfig()
+	pcall(function()
+		if writefile then
+			pcall(function() if not isfolder("HipHub/dqr") then makefolder("HipHub/dqr") end end)
+			writefile(CONFIG_PATH, HttpService:JSONEncode(CFG))
+		end
+	end)
+end
+local function loadConfig()
+	pcall(function()
+		if isfile and readfile and isfile(CONFIG_PATH) then
+			local d = HttpService:JSONDecode(readfile(CONFIG_PATH))
+			for k, v in pairs(d) do CFG[k] = v end
+		end
+	end)
+end
+loadConfig()
+
+-- ═══ STATS ═══
+local STATS = { enemiesKilled = 0, bossesKilled = 0, itemsSold = 0 }
+
+-- ═══ UNLOAD ═══
+local _connections = {}
+local _espObjects  = {}
+local function addConn(c) if c then table.insert(_connections, c) end end
+
+local function stopFarmFly()
+	pcall(function()
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local bv = hrp and hrp:FindFirstChild("HipHubFarmFly")
+		if bv then bv:Destroy() end
+		if char then
+			for _, p in ipairs(char:GetDescendants()) do
+				if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+					p.CanCollide = true
+				end
+			end
+		end
+	end)
+end
+
+local function cleanup()
+	for _, c in pairs(_connections) do pcall(function() c:Disconnect() end) end
+	for _, e in pairs(_espObjects)  do pcall(function() e:Destroy()    end) end
+	_connections, _espObjects = {}, {}
+	stopFarmFly()
+	for _, k in ipairs({"autoFarm","autoSell","speedEnabled","jumpEnabled","noclipEnabled","infJump","playerESP","enemyESP","fpsBooster","antiAfk","bossAutoReady","autoReplay"}) do
+		CFG[k] = false
+	end
+end
+if getgenv then getgenv().DQR_Unload = cleanup end
+
 -- ═══ COMBAT & ENEMY HELPERS ═══
 local function getWeaponRemote()
 	local char = player.Character
@@ -125,26 +192,14 @@ local function getNearestEnemy()
 	return enemies[1]
 end
 
-local function stopFarmFly()
-	pcall(function()
-		local char = player.Character
-		local hrp = char and char:FindFirstChild("HumanoidRootPart")
-		local bv = hrp and hrp:FindFirstChild("HipHubFarmFly")
-		if bv then bv:Destroy() end
-		if char then
-			for _, p in ipairs(char:GetDescendants()) do
-				if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
-					p.CanCollide = true
-				end
-			end
-		end
-	end)
-end
-
 local function attackTarget(enemyData)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not char or not hrp or not enemyData or not enemyData.rootPart then return end
+
+	-- Peaceful check (town/lobby)
+	local peaceful = player:FindFirstChild("peaceful")
+	if peaceful and peaceful.Value == true then return end
 
 	local ePos = enemyData.rootPart.Position
 	local hoverHeight = tonumber(CFG.farmHoverHeight) or 7.5
@@ -175,26 +230,39 @@ local function attackTarget(enemyData)
 		hrp.AssemblyAngularVelocity = Vector3.zero
 	end
 
-	-- Find weapon
+	-- Find weapon accessory (as in official UIS script)
 	local wep = nil
 	for _, child in ipairs(char:GetChildren()) do
-		if (child:IsA("Accessory") and child:FindFirstChild("Weapon")) or child:IsA("Tool") then
+		if child:IsA("Accessory") and child:FindFirstChild("Weapon") then
 			wep = child
 			break
 		end
 	end
+	if not wep then
+		for _, child in ipairs(char:GetChildren()) do
+			if child:IsA("Tool") then
+				wep = child
+				break
+			end
+		end
+	end
+
+	-- Fire weapon swing if not busy casting
+	local busyCasting = char:FindFirstChild("busyCasting")
+	if not busyCasting or busyCasting.Value == false then
+		if wep then
+			local wRemote = wep:FindFirstChildOfClass("RemoteEvent") or wep:FindFirstChild("swing")
+			if wRemote then
+				pcall(function() wRemote:FireServer() end)
+			end
+			local wu = getRemote("weaponUsed")
+			if wu then
+				pcall(function() wu:FireServer() end)
+			end
+		end
+	end
+
 	local hitBox = wep and wep:FindFirstChild("hitBox")
-
-	-- Fire weapon swing
-	local wRemote = getWeaponRemote()
-	if wRemote then
-		pcall(function() wRemote:FireServer() end)
-	end
-	local wu = getRemote("weaponUsed")
-	if wu then
-		pcall(function() wu:FireServer() end)
-	end
-
 	-- Fire touch interest if supported
 	if hitBox and enemyData.rootPart and firetouchinterest then
 		pcall(function()
@@ -203,76 +271,26 @@ local function attackTarget(enemyData)
 		end)
 	end
 
-	-- Trigger ability spells from Backpack
+	-- Trigger ability spells from Backpack (Q and E)
 	pcall(function()
 		local bp = player:FindFirstChild("Backpack")
 		if bp then
-			for _, tool in ipairs(bp:GetChildren()) do
-				if tool:IsA("Tool") then
+			for _, slotKey in ipairs({"q", "e"}) do
+				for _, tool in ipairs(bp:GetChildren()) do
 					local slot = tool:FindFirstChild("abilitySlot")
 					local cd = tool:FindFirstChild("cooldown")
-					if slot and (not cd or cd.Value <= 0) then
+					if slot and slot.Value == slotKey and (not cd or cd.Value <= 0) then
 						local le = tool:FindFirstChild("localEvent")
 						if le then le:Fire() end
 						local au = getRemote("abilityUsed")
-						if au then au:FireServer(slot.Value, tool) end
+						if au then au:FireServer(slotKey, tool) end
+						break
 					end
 				end
 			end
 		end
 	end)
 end
-
-
--- ═══ CONFIG ═══
-local CONFIG_PATH = "HipHub/dqr/config.json"
-local CFG = {
-	autoFarm = false, autoFarmDelay = 0.15, farmTeleport = true, farmHoverHeight = 7.5,
-	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
-	autoSell = false, autoSellDelay = 30,
-	speedEnabled = false, speedValue = 50,
-	jumpEnabled = false, jumpValue = 100,
-	noclipEnabled = false, infJump = false,
-	playerESP = false, enemyESP = false, espDistance = 500,
-	antiAfk = true, fpsBooster = false,
-	autoReplay = false, chatBypass = false, dropNotif = false,
-}
-
-local function saveConfig()
-	pcall(function()
-		if writefile then
-			pcall(function() if not isfolder("HipHub/dqr") then makefolder("HipHub/dqr") end end)
-			writefile(CONFIG_PATH, HttpService:JSONEncode(CFG))
-		end
-	end)
-end
-local function loadConfig()
-	pcall(function()
-		if isfile and readfile and isfile(CONFIG_PATH) then
-			local d = HttpService:JSONDecode(readfile(CONFIG_PATH))
-			for k, v in pairs(d) do CFG[k] = v end
-		end
-	end)
-end
-loadConfig()
-
--- ═══ STATS ═══
-local STATS = { enemiesKilled = 0, bossesKilled = 0, itemsSold = 0 }
-
--- ═══ UNLOAD ═══
-local _connections = {}
-local _espObjects  = {}
-local function addConn(c) if c then table.insert(_connections, c) end end
-local function cleanup()
-	for _, c in pairs(_connections) do pcall(function() c:Disconnect() end) end
-	for _, e in pairs(_espObjects)  do pcall(function() e:Destroy()    end) end
-	_connections, _espObjects = {}, {}
-	stopFarmFly()
-	for _, k in ipairs({"autoFarm","autoSell","speedEnabled","jumpEnabled","noclipEnabled","infJump","playerESP","enemyESP","fpsBooster","antiAfk","bossAutoReady","autoReplay"}) do
-		CFG[k] = false
-	end
-end
-if getgenv then getgenv().DQR_Unload = cleanup end
 
 -- ═══ DESIGN TOKENS ═══
 local C = {
