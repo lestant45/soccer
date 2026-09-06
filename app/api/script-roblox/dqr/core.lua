@@ -38,13 +38,14 @@ local function getWeaponRemote()
 	local char = player.Character
 	if not char then return nil end
 	for _, child in ipairs(char:GetChildren()) do
-		if child:IsA("Accessory") and child:FindFirstChild("Weapon") then
-			local r = child:FindFirstChildOfClass("RemoteEvent")
+		if (child:IsA("Accessory") and child:FindFirstChild("Weapon")) or child:IsA("Tool") then
+			local r = child:FindFirstChild("swing") or child:FindFirstChildOfClass("RemoteEvent")
 			if r then return r end
-		end
-		if child:IsA("Tool") then
-			local r = child:FindFirstChildOfClass("RemoteEvent")
-			if r then return r end
+			for _, desc in ipairs(child:GetDescendants()) do
+				if desc:IsA("RemoteEvent") and desc.Name:lower():find("swing") then
+					return desc
+				end
+			end
 		end
 	end
 	return nil
@@ -59,7 +60,7 @@ local function getAllEnemies()
 		if not m or not m:IsA("Model") or seen[m] then return end
 		if m == char or Players:GetPlayerFromCharacter(m) then return end
 		local hum = m:FindFirstChildOfClass("Humanoid")
-		local root = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m.PrimaryPart
+		local root = m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso") or m:FindFirstChild("UpperTorso") or m.PrimaryPart
 		if hum and hum.Health > 0 and root then
 			seen[m] = true
 			table.insert(list, {
@@ -116,6 +117,7 @@ local function getNearestEnemy()
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hrp then return enemies[1] end
 	table.sort(enemies, function(a, b)
+		if not a.rootPart or not b.rootPart then return false end
 		local distA = (a.rootPart.Position - hrp.Position).Magnitude
 		local distB = (b.rootPart.Position - hrp.Position).Magnitude
 		return distA < distB
@@ -129,19 +131,33 @@ local function stopFarmFly()
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 		local bv = hrp and hrp:FindFirstChild("HipHubFarmFly")
 		if bv then bv:Destroy() end
+		if char then
+			for _, p in ipairs(char:GetDescendants()) do
+				if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+					p.CanCollide = true
+				end
+			end
+		end
 	end)
 end
 
 local function attackTarget(enemyData)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if not hrp or not enemyData or not enemyData.rootPart then return end
+	if not char or not hrp or not enemyData or not enemyData.rootPart then return end
 
 	local ePos = enemyData.rootPart.Position
-	local hoverHeight = CFG.farmHoverHeight or 7.5
+	local hoverHeight = tonumber(CFG.farmHoverHeight) or 7.5
 
 	-- Position player hovering above enemy outside melee reach
 	if CFG.farmTeleport then
+		-- Noclip character to prevent physics snagging on doors/walls
+		for _, p in ipairs(char:GetDescendants()) do
+			if p:IsA("BasePart") and p.CanCollide then
+				p.CanCollide = false
+			end
+		end
+
 		local bv = hrp:FindFirstChild("HipHubFarmFly")
 		if not bv then
 			bv = Instance.new("BodyVelocity")
@@ -150,8 +166,13 @@ local function attackTarget(enemyData)
 			bv.Velocity = Vector3.zero
 			bv.Parent = hrp
 		end
-		hrp.CFrame = CFrame.lookAt(ePos + Vector3.new(0, hoverHeight, 0), ePos)
+
+		local targetPos = ePos + Vector3.new(0, hoverHeight, 0)
+		local targetCF = CFrame.lookAt(targetPos, ePos)
+		hrp.CFrame = targetCF
+		pcall(function() char:PivotTo(targetCF) end)
 		hrp.AssemblyLinearVelocity = Vector3.zero
+		hrp.AssemblyAngularVelocity = Vector3.zero
 	end
 
 	-- Find weapon

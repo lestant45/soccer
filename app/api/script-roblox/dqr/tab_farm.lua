@@ -42,21 +42,21 @@ do
 		statusLbl.Text="Status: <font color='#00d4a8'>Active</font>   Enemies Killed: "..STATS.enemiesKilled
 		task.spawn(function()
 			while farmActive and CFG.autoFarm do
-				pcall(function()
+				local ok, err = pcall(function()
 					local char = player.Character
 					local hrp = char and char:FindFirstChild("HumanoidRootPart")
 					if not char or not hrp then return end
 
 					-- Check if dungeon needs to start (click green START button)
-					local sb = player.PlayerGui:FindFirstChild("startButton")
-					if sb and sb.Enabled then
+					pcall(function()
 						local r = getRemote("changeStartValue")
 						if r then r:FireServer() end
-					end
+					end)
 
 					local target = getNearestEnemy()
 					if not target then
 						stopFarmFly()
+						statusLbl.Text = "Status: <font color='#ffaa00'>Searching enemies...</font>   Enemies Killed: "..STATS.enemiesKilled
 						-- If in dungeon with no enemies, advance room checkpoint/startPart
 						local dungeon = Workspace:FindFirstChild("dungeon")
 						if dungeon then
@@ -64,21 +64,24 @@ do
 								if room.Name ~= "initialRoom" then
 									local cp = room:FindFirstChild("checkPoint") or room:FindFirstChild("startPart")
 									if cp and (cp.Position - hrp.Position).Magnitude > 25 then
-										hrp.CFrame = cp.CFrame + Vector3.new(0, 4, 0)
+										local targetCF = cp.CFrame + Vector3.new(0, 4, 0)
+										hrp.CFrame = targetCF
+										pcall(function() char:PivotTo(targetCF) end)
 										break
 									end
 								end
 							end
 						end
-						task.wait(0.5)
+						task.wait(0.4)
 						return
 					end
 
 					-- Attack nearest target while hovering above it
 					local eh = target.humanoid
+					statusLbl.Text = "Status: <font color='#00d4a8'>Farming " .. tostring(target.name) .. "</font>   Enemies Killed: "..STATS.enemiesKilled
 					while farmActive and CFG.autoFarm and eh and eh.Health > 0 and target.model.Parent do
 						attackTarget(target)
-						task.wait(CFG.autoFarmDelay or 0.15)
+						task.wait(tonumber(CFG.autoFarmDelay) or 0.15)
 					end
 
 					if eh and eh.Health <= 0 then
@@ -86,6 +89,9 @@ do
 						statusLbl.Text = "Status: <font color='#00d4a8'>Active</font>   Enemies Killed: "..STATS.enemiesKilled
 					end
 				end)
+				if not ok then
+					warn("[HipHub DQR Farm Error]:", err)
+				end
 				task.wait(0.08)
 			end
 			stopFarmFly()
