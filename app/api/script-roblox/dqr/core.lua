@@ -75,6 +75,14 @@ local _connections = {}
 local _espObjects  = {}
 local function addConn(c) if c then table.insert(_connections, c) end end
 
+local activeTween = nil
+local function stopFarmTween()
+	if activeTween then
+		pcall(function() activeTween:Cancel() end)
+		activeTween = nil
+	end
+end
+
 local function stopFarmFly()
 	pcall(function()
 		local char = player.Character
@@ -104,13 +112,6 @@ end
 if getgenv then getgenv().DQR_Unload = cleanup end
 
 -- ═══ SMOOTH TWEEN & MOVEMENT SYSTEM ═══
-local activeTween = nil
-local function stopFarmTween()
-	if activeTween then
-		pcall(function() activeTween:Cancel() end)
-		activeTween = nil
-	end
-end
 
 local function groundTweenTo(targetCF, speed, isHover)
 	local char = player.Character
