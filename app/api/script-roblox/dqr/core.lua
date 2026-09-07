@@ -370,7 +370,7 @@ local function approachTarget(enemyData)
 
 	local ePos = enemyData.rootPart.Position
 	local dist = (hrp.Position - ePos).Magnitude
-	local hoverHeight = tonumber(CFG.farmHoverHeight) or 4.0
+	local hoverHeight = tonumber(CFG.farmHoverHeight) or 3.5
 	local moveSpeed = tonumber(CFG.tweenSpeed) or 26
 
 	if dist > 25 then
@@ -384,27 +384,31 @@ local function approachTarget(enemyData)
 		end
 
 		local dir = (ePos - hrp.Position).Unit
-		local stepDist = math.min(dist - 22, 28)
+		local stepDist = math.min(dist - 20, 28)
 		local targetGroundPos = hrp.Position + dir * math.max(stepDist, 4)
 		local groundCF = CFrame.lookAt(targetGroundPos, targetGroundPos + dir)
 		groundTweenTo(groundCF, moveSpeed, false)
 	else
 		-- ═══ PHASE 2: CLOSE-RANGE AIR HOVER (<= 25 studs) ═══
-		-- Lift smoothly into the air directly above the enemy, safe from mob swarms
-		local bv = hrp:FindFirstChild("HipHubFarmFly")
-		if not bv then
-			bv = Instance.new("BodyVelocity")
-			bv.Name = "HipHubFarmFly"
-			bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-			bv.Velocity = Vector3.zero
-			bv.Parent = hrp
-		end
+		-- Stop old BodyVelocity BEFORE tweening so physics never fights TweenService!
+		stopFarmFly()
 
-		local lookDir = enemyData.rootPart.CFrame.LookVector
-		local offset = -lookDir * 1.0 + Vector3.new(0, hoverHeight, 0)
-		local targetPos = ePos + offset
+		local targetPos = ePos + Vector3.new(0, hoverHeight, 0)
 		local targetCF = CFrame.lookAt(targetPos, ePos)
 		groundTweenTo(targetCF, moveSpeed, true)
+
+		-- Once arrived, hold position smoothly
+		if hrp and hrp.Parent then
+			local bv = hrp:FindFirstChild("HipHubFarmFly")
+			if not bv then
+				bv = Instance.new("BodyVelocity")
+				bv.Name = "HipHubFarmFly"
+				bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+				bv.Velocity = Vector3.zero
+				bv.Parent = hrp
+			end
+			hrp.AssemblyLinearVelocity = Vector3.zero
+		end
 	end
 	return true
 end

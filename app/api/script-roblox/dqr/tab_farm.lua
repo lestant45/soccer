@@ -105,8 +105,8 @@ do
 					local eh = target.humanoid
 					if target.rootPart and hrp then
 						local initialDist = (hrp.Position - target.rootPart.Position).Magnitude
-						local hoverHeight = tonumber(CFG.farmHoverHeight) or 4.0
-						if initialDist > (hoverHeight + 2.5) then
+						local hoverHeight = tonumber(CFG.farmHoverHeight) or 3.5
+						if initialDist > (hoverHeight + 2.0) then
 							statusLbl.Text = "Status: <font color='#00d4a8'>Approaching " .. tostring(target.name) .. "</font>   Enemies Killed: "..STATS.enemiesKilled
 							approachTarget(target)
 						end
@@ -119,19 +119,27 @@ do
 						if not currentHrp or not target.rootPart then break end
 
 						local currentDist = (currentHrp.Position - target.rootPart.Position).Magnitude
-						local hoverHeight = tonumber(CFG.farmHoverHeight) or 4.0
+						local hoverHeight = tonumber(CFG.farmHoverHeight) or 3.5
 
 						if currentDist > 25 then
 							-- More than 25 studs: Switch back to ground travel
+							stopFarmFly()
 							approachTarget(target)
 							break
-						elseif currentDist > (hoverHeight + 3.0) or currentDist < (hoverHeight - 1.2) then
-							-- Re-align hover height and position directly above enemy
+						elseif currentDist > 8.0 then
+							-- Enemy walked far away, re-approach smoothly
 							approachTarget(target)
 						else
-							-- In safe hover range above enemy: strike downwards!
+							-- In sweet spot hover range!
+							-- Smoothly follow enemy position without restarting any tweens (prevents stutter & rubberband!)
+							local curEPos = target.rootPart.Position
+							local hoverPos = curEPos + Vector3.new(0, hoverHeight, 0)
+							currentHrp.CFrame = CFrame.lookAt(hoverPos, curEPos)
+							currentHrp.AssemblyLinearVelocity = Vector3.zero
+
+							-- Strike downwards directly into the enemy below!
 							performAttack(target)
-							task.wait(tonumber(CFG.autoFarmDelay) or 0.28)
+							task.wait(tonumber(CFG.autoFarmDelay) or 0.35)
 						end
 					end
 
