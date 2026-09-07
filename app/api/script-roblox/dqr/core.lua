@@ -112,7 +112,7 @@ local function stopFarmTween()
 	end
 end
 
-local function groundTweenTo(targetCF, speed)
+local function groundTweenTo(targetCF, speed, isHover)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hrp then return false end
@@ -124,17 +124,20 @@ local function groundTweenTo(targetCF, speed)
 		return true
 	end
 
-	-- Ground raycast: ensure movement stays flush with the floor (never floating in the air)
-	local rayOrigin = targetCF.Position + Vector3.new(0, 5, 0)
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterDescendantsInstances = { char }
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	local rayResult = Workspace:Raycast(rayOrigin, Vector3.new(0, -25, 0), raycastParams)
-	local targetPos = targetCF.Position
-	if rayResult and rayResult.Position then
-		targetPos = Vector3.new(targetPos.X, rayResult.Position.Y + 2.8, targetPos.Z)
+	local finalCF = targetCF
+	if not isHover then
+		-- Ground raycast: ensure movement stays flush with the floor (never floating in the air)
+		local rayOrigin = targetCF.Position + Vector3.new(0, 5, 0)
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = { char }
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+		local rayResult = Workspace:Raycast(rayOrigin, Vector3.new(0, -25, 0), raycastParams)
+		local targetPos = targetCF.Position
+		if rayResult and rayResult.Position then
+			targetPos = Vector3.new(targetPos.X, rayResult.Position.Y + 2.8, targetPos.Z)
+		end
+		finalCF = CFrame.lookAt(targetPos, targetPos + targetCF.LookVector)
 	end
-	local finalCF = CFrame.lookAt(targetPos, targetPos + targetCF.LookVector)
 
 	local moveSpeed = speed or (tonumber(CFG.tweenSpeed) or 26)
 	local duration = math.clamp(dist / moveSpeed, 0.08, 6)
@@ -322,7 +325,10 @@ local function approachTarget(enemyData)
 	local hoverHeight = tonumber(CFG.farmHoverHeight) or 4.5
 
 	if (CFG.farmPositionMode or "behind") == "behind" then
-		-- GROUNDED BEHIND ENEMY (Safe from anti-cheat & out of enemy front melee cone)
+		-- SAFE DISTANCE KITING (3.7 studs behind enemy):
+		-- Enemy melee reach is 3.0 studs -> Enemy CANNOT hit player!
+		-- Player dagger reach is 6.0 studs -> Player hits enemy 100%!
+		-- Player is grounded -> Server anti-cheat never triggers and damage registers 100%!
 		local bv = hrp:FindFirstChild("HipHubFarmFly")
 		if bv then bv:Destroy() end
 
@@ -333,7 +339,7 @@ local function approachTarget(enemyData)
 		end
 
 		local enemyCF = enemyData.rootPart.CFrame
-		local targetCF = enemyCF * CFrame.new(0, 0, 2.2)
+		local targetCF = enemyCF * CFrame.new(0, 0, 3.7)
 		groundTweenTo(targetCF, tonumber(CFG.tweenSpeed) or 26)
 	else
 		-- HOVER ABOVE (air)
@@ -356,7 +362,7 @@ local function approachTarget(enemyData)
 		local offset = -lookDir * 1.5 + Vector3.new(0, hoverHeight, 0)
 		local targetPos = ePos + offset
 		local targetCF = CFrame.lookAt(targetPos, ePos)
-		groundTweenTo(targetCF, tonumber(CFG.tweenSpeed) or 26)
+		groundTweenTo(targetCF, tonumber(CFG.tweenSpeed) or 26, true)
 	end
 	return true
 end

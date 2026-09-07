@@ -32,7 +32,7 @@ do
 		local n=tonumber(v); if n then CFG.tweenSpeed=math.clamp(n,10,60); saveConfig() end
 	end)
 
-	local _,posTrack,posThumb = createToggle(settSec.Content,"Grounded Backstab (Safe)",4)
+	local _,posTrack,posThumb = createToggle(settSec.Content,"Safe Distance Kite (No Hit)",4)
 	local isBehind = (CFG.farmPositionMode or "behind") == "behind"
 	if isBehind then
 		posTrack.BackgroundColor3 = C.toggleOn
@@ -107,24 +107,29 @@ do
 					local eh = target.humanoid
 					if target.rootPart and hrp then
 						local initialDist = (hrp.Position - target.rootPart.Position).Magnitude
-						if initialDist > 3.2 then
+						if initialDist > 4.0 then
 							statusLbl.Text = "Status: <font color='#00d4a8'>Approaching " .. tostring(target.name) .. "</font>   Enemies Killed: "..STATS.enemiesKilled
 							approachTarget(target)
 						end
 					end
 
-					-- Step 2: In-combat strike loop (zero position override = zero rubberbanding)
+					-- Step 2: In-combat strike loop (auto-spacing kiting: keeps 3.7 studs distance)
 					statusLbl.Text = "Status: <font color='#00d4a8'>Attacking " .. tostring(target.name) .. "</font>   Enemies Killed: "..STATS.enemiesKilled
 					while farmActive and CFG.autoFarm and eh and eh.Health > 0 and target.model.Parent do
 						local currentHrp = char and char:FindFirstChild("HumanoidRootPart")
 						if not currentHrp or not target.rootPart then break end
 
 						local currentDist = (currentHrp.Position - target.rootPart.Position).Magnitude
-						if currentDist > 4.5 then
-							-- Target walked away, take a smooth step closer
+						if currentDist > 5.0 then
+							-- Target walked away, step closer into safe weapon reach
 							approachTarget(target)
+						elseif (CFG.farmPositionMode or "behind") == "behind" and currentDist < 3.2 then
+							-- Too close (inside enemy 3-stud danger radius), step back to safe 3.7 studs!
+							local enemyCF = target.rootPart.CFrame
+							local safeCF = enemyCF * CFrame.new(0, 0, 3.7)
+							groundTweenTo(safeCF, tonumber(CFG.tweenSpeed) or 26)
 						else
-							-- In melee range: rotate to face target & strike
+							-- In safe sweet spot (3.2 - 5.0 studs): out of enemy reach, inside player weapon reach!
 							performAttack(target)
 							task.wait(tonumber(CFG.autoFarmDelay) or 0.28)
 						end
