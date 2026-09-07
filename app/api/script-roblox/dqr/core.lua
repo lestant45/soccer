@@ -36,7 +36,7 @@ local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) 
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
-	autoFarm = false, autoFarmDelay = 0.28, farmTeleport = true, farmHoverHeight = 4.0,
+	autoFarm = false, autoFarmDelay = 0.35, farmTeleport = true, farmHoverHeight = 2.5,
 	farmPositionMode = "hover", -- 2-phase approach: ground (>25 studs) + hover (<=25 studs)
 	tweenSpeed = 26, -- human sprint travel speed (26 studs/s, safe from anti-cheat)
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
@@ -90,6 +90,8 @@ local function stopFarmFly()
 		local bv = hrp and hrp:FindFirstChild("HipHubFarmFly")
 		if bv then bv:Destroy() end
 		if char then
+			local waist = char:FindFirstChild("UpperTorso") and char.UpperTorso:FindFirstChild("Waist")
+			if waist then waist.C0 = CFrame.new(0, 0.2, 0) end
 			for _, p in ipairs(char:GetDescendants()) do
 				if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
 					p.CanCollide = true
@@ -393,7 +395,8 @@ local function approachTarget(enemyData)
 		-- Stop old BodyVelocity BEFORE tweening so physics never fights TweenService!
 		stopFarmFly()
 
-		local targetPos = ePos + Vector3.new(0, hoverHeight, 0)
+		local eLook = enemyData.rootPart.CFrame.LookVector
+		local targetPos = ePos - eLook * 1.5 + Vector3.new(0, hoverHeight, 0)
 		local targetCF = CFrame.lookAt(targetPos, ePos)
 		groundTweenTo(targetCF, moveSpeed, true)
 
@@ -418,9 +421,18 @@ local function performAttack(enemyData)
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not char or not hrp or not enemyData or not enemyData.rootPart then return end
 
-	-- AIM DOWNWARDS: Look directly at the enemy below so blade physically sweeps through hitbox!
+	-- AIM DOWNWARDS: Look diagonally down at enemy from 1.5 studs behind so blade sweeps through torso
 	local ePos = enemyData.rootPart.Position
-	hrp.CFrame = CFrame.lookAt(hrp.Position, ePos)
+	local eLook = enemyData.rootPart.CFrame.LookVector
+	local hoverHeight = tonumber(CFG.farmHoverHeight) or 2.5
+	local hoverPos = ePos - eLook * 1.5 + Vector3.new(0, hoverHeight, 0)
+	hrp.CFrame = CFrame.lookAt(hoverPos, ePos)
+
+	-- Physically tilt waist downward so sword points directly at enemy
+	local waist = char:FindFirstChild("UpperTorso") and char.UpperTorso:FindFirstChild("Waist")
+	if waist then
+		waist.C0 = CFrame.new(0, 0.2, 0) * CFrame.Angles(math.rad(-30), 0, 0)
+	end
 
 	-- Find weapon accessory
 	local wep = nil

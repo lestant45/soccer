@@ -20,12 +20,12 @@ do
 	local settSec = createSection(frame,"Farm Settings",2,true)
 	applyList(settSec.Content,6)
 
-	createInput(settSec.Content,"Attack Delay (s)","0.28",tostring(CFG.autoFarmDelay or 0.28),1,function(v)
+	createInput(settSec.Content,"Attack Delay (s)","0.35",tostring(CFG.autoFarmDelay or 0.35),1,function(v)
 		local n=tonumber(v); if n then CFG.autoFarmDelay=math.clamp(n,0.1,5); saveConfig() end
 	end)
 
-	createInput(settSec.Content,"Hover Height (studs)","4.0",tostring(CFG.farmHoverHeight or 4.0),2,function(v)
-		local n=tonumber(v); if n then CFG.farmHoverHeight=math.clamp(n,2,30); saveConfig() end
+	createInput(settSec.Content,"Hover Height (studs)","2.5",tostring(CFG.farmHoverHeight or 2.5),2,function(v)
+		local n=tonumber(v); if n then CFG.farmHoverHeight=math.clamp(n,1.5,10); saveConfig() end
 	end)
 
 	createInput(settSec.Content,"Tween Speed (studs/s)","26",tostring(CFG.tweenSpeed or 26),3,function(v)
@@ -105,7 +105,7 @@ do
 					local eh = target.humanoid
 					if target.rootPart and hrp then
 						local initialDist = (hrp.Position - target.rootPart.Position).Magnitude
-						local hoverHeight = tonumber(CFG.farmHoverHeight) or 3.5
+						local hoverHeight = tonumber(CFG.farmHoverHeight) or 2.5
 						if initialDist > (hoverHeight + 2.0) then
 							statusLbl.Text = "Status: <font color='#00d4a8'>Approaching " .. tostring(target.name) .. "</font>   Enemies Killed: "..STATS.enemiesKilled
 							approachTarget(target)
@@ -119,7 +119,7 @@ do
 						if not currentHrp or not target.rootPart then break end
 
 						local currentDist = (currentHrp.Position - target.rootPart.Position).Magnitude
-						local hoverHeight = tonumber(CFG.farmHoverHeight) or 3.5
+						local hoverHeight = tonumber(CFG.farmHoverHeight) or 2.5
 
 						if currentDist > 25 then
 							-- More than 25 studs: Switch back to ground travel
@@ -131,9 +131,11 @@ do
 							approachTarget(target)
 						else
 							-- In sweet spot hover range!
-							-- Smoothly follow enemy position without restarting any tweens (prevents stutter & rubberband!)
+							-- Smoothly follow enemy position: 1.5 studs behind and hoverHeight above
+							-- This ensures CFrame.lookAt angles diagonally DOWN at the enemy!
 							local curEPos = target.rootPart.Position
-							local hoverPos = curEPos + Vector3.new(0, hoverHeight, 0)
+							local curELook = target.rootPart.CFrame.LookVector
+							local hoverPos = curEPos - curELook * 1.5 + Vector3.new(0, hoverHeight, 0)
 							currentHrp.CFrame = CFrame.lookAt(hoverPos, curEPos)
 							currentHrp.AssemblyLinearVelocity = Vector3.zero
 
