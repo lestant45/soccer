@@ -23,6 +23,7 @@ local Workspace         = game:GetService("Workspace")
 local Lighting          = game:GetService("Lighting")
 local HttpService       = game:GetService("HttpService")
 local StarterGui        = game:GetService("StarterGui")
+local PathfindingService = game:GetService("PathfindingService")
 
 local player = Players.LocalPlayer
 while not player do task.wait(0.5); player = Players.LocalPlayer end
@@ -36,7 +37,7 @@ local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) 
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
-	autoFarm = false, autoFarmDelay = 0.35, farmTeleport = true, farmHoverHeight = 2.5,
+	autoFarm = false, autoFarmDelay = 0.35, farmTeleport = true, farmHoverHeight = 2.8,
 	farmPositionMode = "hover", -- 2-phase approach: ground (>25 studs) + hover (<=25 studs)
 	tweenSpeed = 26, -- human sprint travel speed (26 studs/s, safe from anti-cheat)
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
@@ -377,7 +378,7 @@ local function approachTarget(enemyData)
 
 	if dist > 25 then
 		-- ═══ PHASE 1: GROUND TRAVEL (> 25 studs) ═══
-		-- Strictly stay touching ground, no flying, character parts collideable to avoid clipping
+		-- Strictly stay touching ground, no flying, character parts collideable
 		stopFarmFly()
 		for _, p in ipairs(char:GetDescendants()) do
 			if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
@@ -385,33 +386,51 @@ local function approachTarget(enemyData)
 			end
 		end
 
-		local dir = (ePos - hrp.Position).Unit
-		local stepDist = math.min(dist - 20, 28)
-		local targetGroundPos = hrp.Position + dir * math.max(stepDist, 4)
-		local groundCF = CFrame.lookAt(targetGroundPos, targetGroundPos + dir)
-		groundTweenTo(groundCF, moveSpeed, false)
+		-- PathfindingService ensures we navigate along corridors and doors without clipping walls!
+		local path = PathfindingService:CreatePath({
+			AgentRadius = 2.0,
+			AgentHeight = 5.0,
+			AgentCanJump = false
+		})
+		local ok = pcall(function()
+			path:ComputeAsync(hrp.Position, ePos)
+		end)
+
+		if ok and path.Status == Enum.PathStatus.Success then
+			local waypoints = path:GetWaypoints()
+			for i = 2, #waypoints do
+				if not CFG.autoFarm or not char or not hrp then break end
+				local wp = waypoints[i]
+				local wpCF = CFrame.new(wp.Position + Vector3.new(0, 2.5, 0))
+				groundTweenTo(wpCF, moveSpeed, false)
+				if (hrp.Position - ePos).Magnitude <= 22 then
+					break
+				end
+			end
+		else
+			local dir = (ePos - hrp.Position).Unit
+			local stepDist = math.min(dist - 20, 26)
+			local targetGroundPos = hrp.Position + dir * math.max(stepDist, 4)
+			local groundCF = CFrame.lookAt(targetGroundPos, targetGroundPos + dir)
+			groundTweenTo(groundCF, moveSpeed, false)
+		end
 	else
 		-- ═══ PHASE 2: CLOSE-RANGE AIR HOVER (<= 25 studs) ═══
-		-- Stop old BodyVelocity BEFORE tweening so physics never fights TweenService!
-		stopFarmFly()
+		-- Ensure BodyVelocity is active so player stays suspended in the air
+		local bv = hrp:FindFirstChild("HipHubFarmFly")
+		if not bv then
+			bv = Instance.new("BodyVelocity")
+			bv.Name = "HipHubFarmFly"
+			bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+			bv.Velocity = Vector3.zero
+			bv.Parent = hrp
+		end
 
 		local eLook = enemyData.rootPart.CFrame.LookVector
-		local targetPos = ePos - eLook * 1.5 + Vector3.new(0, hoverHeight, 0)
+		local targetPos = ePos - eLook * 1.0 + Vector3.new(0, hoverHeight, 0)
 		local targetCF = CFrame.lookAt(targetPos, ePos)
 		groundTweenTo(targetCF, moveSpeed, true)
-
-		-- Once arrived, hold position smoothly
-		if hrp and hrp.Parent then
-			local bv = hrp:FindFirstChild("HipHubFarmFly")
-			if not bv then
-				bv = Instance.new("BodyVelocity")
-				bv.Name = "HipHubFarmFly"
-				bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-				bv.Velocity = Vector3.zero
-				bv.Parent = hrp
-			end
-			hrp.AssemblyLinearVelocity = Vector3.zero
-		end
+		hrp.AssemblyLinearVelocity = Vector3.zero
 	end
 	return true
 end

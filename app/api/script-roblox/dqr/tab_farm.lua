@@ -24,7 +24,7 @@ do
 		local n=tonumber(v); if n then CFG.autoFarmDelay=math.clamp(n,0.1,5); saveConfig() end
 	end)
 
-	createInput(settSec.Content,"Hover Height (studs)","2.5",tostring(CFG.farmHoverHeight or 2.5),2,function(v)
+	createInput(settSec.Content,"Hover Height (studs)","2.8",tostring(CFG.farmHoverHeight or 2.8),2,function(v)
 		local n=tonumber(v); if n then CFG.farmHoverHeight=math.clamp(n,1.5,10); saveConfig() end
 	end)
 
@@ -105,21 +105,34 @@ do
 					local eh = target.humanoid
 					if target.rootPart and hrp then
 						local initialDist = (hrp.Position - target.rootPart.Position).Magnitude
-						local hoverHeight = tonumber(CFG.farmHoverHeight) or 2.5
-						if initialDist > (hoverHeight + 2.0) then
+						local hoverHeight = tonumber(CFG.farmHoverHeight) or 2.8
+						if initialDist > 5.0 then
 							statusLbl.Text = "Status: <font color='#00d4a8'>Approaching " .. tostring(target.name) .. "</font>   Enemies Killed: "..STATS.enemiesKilled
 							approachTarget(target)
 						end
 					end
 
-					-- Step 2: In-combat strike loop
+					-- Ensure BodyVelocity is active so player stays suspended in air and NEVER drops to take mob damage!
+					local charHrp = char and char:FindFirstChild("HumanoidRootPart")
+					if charHrp then
+						local bv = charHrp:FindFirstChild("HipHubFarmFly")
+						if not bv then
+							bv = Instance.new("BodyVelocity")
+							bv.Name = "HipHubFarmFly"
+							bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+							bv.Velocity = Vector3.zero
+							bv.Parent = charHrp
+						end
+					end
+
+					-- Step 2: In-combat strike loop (guaranteed safe hover above mob)
 					statusLbl.Text = "Status: <font color='#00d4a8'>Attacking " .. tostring(target.name) .. "</font>   Enemies Killed: "..STATS.enemiesKilled
 					while farmActive and CFG.autoFarm and eh and eh.Health > 0 and target.model.Parent do
 						local currentHrp = char and char:FindFirstChild("HumanoidRootPart")
 						if not currentHrp or not target.rootPart then break end
 
 						local currentDist = (currentHrp.Position - target.rootPart.Position).Magnitude
-						local hoverHeight = tonumber(CFG.farmHoverHeight) or 2.5
+						local hoverHeight = tonumber(CFG.farmHoverHeight) or 2.8
 
 						if currentDist > 25 then
 							-- More than 25 studs: Switch back to ground travel
@@ -131,11 +144,20 @@ do
 							approachTarget(target)
 						else
 							-- In sweet spot hover range!
-							-- Smoothly follow enemy position: 1.5 studs behind and hoverHeight above
-							-- This ensures CFrame.lookAt angles diagonally DOWN at the enemy!
+							-- Keep BodyVelocity active so gravity never pulls player down into mobs
+							local bv = currentHrp:FindFirstChild("HipHubFarmFly")
+							if not bv then
+								bv = Instance.new("BodyVelocity")
+								bv.Name = "HipHubFarmFly"
+								bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+								bv.Velocity = Vector3.zero
+								bv.Parent = currentHrp
+							end
+
+							-- Hover directly above and slightly behind enemy, looking diagonally down
 							local curEPos = target.rootPart.Position
 							local curELook = target.rootPart.CFrame.LookVector
-							local hoverPos = curEPos - curELook * 1.5 + Vector3.new(0, hoverHeight, 0)
+							local hoverPos = curEPos - curELook * 1.0 + Vector3.new(0, hoverHeight, 0)
 							currentHrp.CFrame = CFrame.lookAt(hoverPos, curEPos)
 							currentHrp.AssemblyLinearVelocity = Vector3.zero
 
