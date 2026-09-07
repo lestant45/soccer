@@ -36,8 +36,8 @@ local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) 
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
-	autoFarm = false, autoFarmDelay = 0.28, farmTeleport = true, farmHoverHeight = 4.5,
-	farmPositionMode = "behind", -- "behind" (grounded backstab, safe from anti-cheat) or "hover"
+	autoFarm = false, autoFarmDelay = 0.28, farmTeleport = true, farmHoverHeight = 4.0,
+	farmPositionMode = "hover", -- 2-phase approach: ground (>25 studs) + hover (<=25 studs)
 	tweenSpeed = 26, -- human sprint travel speed (26 studs/s, safe from anti-cheat)
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
 	autoSell = false, autoSellDelay = 30,
@@ -312,6 +312,52 @@ local function getNearestEnemy()
 	return enemies[1]
 end
 
+local function getNextRoomDoor()
+	local dungeon = Workspace:FindFirstChild("dungeon")
+	if not dungeon then return nil end
+
+	local rooms = {}
+	local bossRoom = nil
+	for _, r in ipairs(dungeon:GetChildren()) do
+		if r.Name == "bossRoom" then
+			bossRoom = r
+		elseif r.Name ~= "initialRoom" then
+			local orderVal = r:FindFirstChild("order")
+			local order = orderVal and orderVal.Value or 0
+			table.insert(rooms, { model = r, order = order })
+		end
+	end
+	table.sort(rooms, function(a, b) return a.order < b.order end)
+
+	local targetRoom = nil
+	for _, rData in ipairs(rooms) do
+		local r = rData.model
+		local ef = r:FindFirstChild("enemyFolder")
+		local alive = 0
+		if ef then
+			for _, e in ipairs(ef:GetChildren()) do
+				if e:IsA("Model") then
+					local hum = e:FindFirstChildOfClass("Humanoid")
+					if hum and hum.Health > 0 then alive = alive + 1 end
+				end
+			end
+		end
+		if alive > 0 then
+			targetRoom = r
+			break
+		end
+	end
+
+	if not targetRoom then
+		targetRoom = bossRoom or (rooms[#rooms] and rooms[#rooms].model)
+	end
+
+	if targetRoom then
+		return targetRoom:FindFirstChild("startPart") or targetRoom:FindFirstChild("checkPoint") or targetRoom:FindFirstChildWhichIsA("BasePart")
+	end
+	return nil
+end
+
 local function approachTarget(enemyData)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -322,33 +368,28 @@ local function approachTarget(enemyData)
 	if peaceful and peaceful.Value == true then return false end
 
 	local ePos = enemyData.rootPart.Position
-	local hoverHeight = tonumber(CFG.farmHoverHeight) or 4.5
+	local dist = (hrp.Position - ePos).Magnitude
+	local hoverHeight = tonumber(CFG.farmHoverHeight) or 4.0
+	local moveSpeed = tonumber(CFG.tweenSpeed) or 26
 
-	if (CFG.farmPositionMode or "behind") == "behind" then
-		-- SAFE DISTANCE KITING (3.7 studs behind enemy):
-		-- Enemy melee reach is 3.0 studs -> Enemy CANNOT hit player!
-		-- Player dagger reach is 6.0 studs -> Player hits enemy 100%!
-		-- Player is grounded -> Server anti-cheat never triggers and damage registers 100%!
-		local bv = hrp:FindFirstChild("HipHubFarmFly")
-		if bv then bv:Destroy() end
-
+	if dist > 25 then
+		-- ═══ PHASE 1: GROUND TRAVEL (> 25 studs) ═══
+		-- Strictly stay touching ground, no flying, character parts collideable to avoid clipping
+		stopFarmFly()
 		for _, p in ipairs(char:GetDescendants()) do
 			if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
 				p.CanCollide = true
 			end
 		end
 
-		local enemyCF = enemyData.rootPart.CFrame
-		local targetCF = enemyCF * CFrame.new(0, 0, 3.7)
-		groundTweenTo(targetCF, tonumber(CFG.tweenSpeed) or 26)
+		local dir = (ePos - hrp.Position).Unit
+		local stepDist = math.min(dist - 22, 28)
+		local targetGroundPos = hrp.Position + dir * math.max(stepDist, 4)
+		local groundCF = CFrame.lookAt(targetGroundPos, targetGroundPos + dir)
+		groundTweenTo(groundCF, moveSpeed, false)
 	else
-		-- HOVER ABOVE (air)
-		for _, p in ipairs(char:GetDescendants()) do
-			if p:IsA("BasePart") and p.CanCollide then
-				p.CanCollide = false
-			end
-		end
-
+		-- ═══ PHASE 2: CLOSE-RANGE AIR HOVER (<= 25 studs) ═══
+		-- Lift smoothly into the air directly above the enemy, safe from mob swarms
 		local bv = hrp:FindFirstChild("HipHubFarmFly")
 		if not bv then
 			bv = Instance.new("BodyVelocity")
@@ -359,10 +400,10 @@ local function approachTarget(enemyData)
 		end
 
 		local lookDir = enemyData.rootPart.CFrame.LookVector
-		local offset = -lookDir * 1.5 + Vector3.new(0, hoverHeight, 0)
+		local offset = -lookDir * 1.0 + Vector3.new(0, hoverHeight, 0)
 		local targetPos = ePos + offset
 		local targetCF = CFrame.lookAt(targetPos, ePos)
-		groundTweenTo(targetCF, tonumber(CFG.tweenSpeed) or 26, true)
+		groundTweenTo(targetCF, moveSpeed, true)
 	end
 	return true
 end
@@ -372,10 +413,9 @@ local function performAttack(enemyData)
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not char or not hrp or not enemyData or not enemyData.rootPart then return end
 
-	-- Face enemy horizontally without modifying position (prevents physics fight and snapback)
+	-- AIM DOWNWARDS: Look directly at the enemy below so blade physically sweeps through hitbox!
 	local ePos = enemyData.rootPart.Position
-	local lookPos = Vector3.new(ePos.X, hrp.Position.Y, ePos.Z)
-	hrp.CFrame = CFrame.lookAt(hrp.Position, lookPos)
+	hrp.CFrame = CFrame.lookAt(hrp.Position, ePos)
 
 	-- Find weapon accessory
 	local wep = nil
@@ -403,7 +443,7 @@ local function performAttack(enemyData)
 			pcall(function() wu:FireServer() end)
 		end
 
-		-- Play visual swing animation (like PC left click)
+		-- Play visual swing animation (downward sweep hits enemy)
 		pcall(function()
 			local hum = char:FindFirstChildOfClass("Humanoid")
 			local anim = wep:FindFirstChild("swing1") or wep:FindFirstChild("swing2")
@@ -412,6 +452,13 @@ local function performAttack(enemyData)
 				if track and not track.IsPlaying then
 					track:Play()
 				end
+			end
+		end)
+
+		-- Optional virtual click if supported by executor
+		pcall(function()
+			if mouse1click then
+				mouse1click()
 			end
 		end)
 	end
