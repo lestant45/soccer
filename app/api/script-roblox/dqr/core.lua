@@ -36,9 +36,9 @@ local function getRemoteF(name) return remotes and remotes:FindFirstChild(name) 
 -- ═══ CONFIG ═══
 local CONFIG_PATH = "HipHub/dqr/config.json"
 local CFG = {
-	autoFarm = false, autoFarmDelay = 0.25, farmTeleport = true, farmHoverHeight = 4.5,
+	autoFarm = false, autoFarmDelay = 0.28, farmTeleport = true, farmHoverHeight = 4.5,
 	farmPositionMode = "behind", -- "behind" (grounded backstab, safe from anti-cheat) or "hover"
-	tweenSpeed = 45, -- human-like smooth travel speed (studs/s)
+	tweenSpeed = 26, -- human sprint travel speed (26 studs/s, safe from anti-cheat)
 	autoBoss = false, bossTier = 1, bossAutoReady = true, bossAutoReplay = true,
 	autoSell = false, autoSellDelay = 30,
 	speedEnabled = false, speedValue = 50,
@@ -112,7 +112,7 @@ local function stopFarmTween()
 	end
 end
 
-local function tweenTo(targetCF, speed)
+local function groundTweenTo(targetCF, speed)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hrp then return false end
@@ -121,15 +121,26 @@ local function tweenTo(targetCF, speed)
 
 	local dist = (hrp.Position - targetCF.Position).Magnitude
 	if dist < 1.5 then
-		hrp.CFrame = targetCF
 		return true
 	end
 
-	local moveSpeed = speed or (tonumber(CFG.tweenSpeed) or 45)
-	local duration = math.clamp(dist / moveSpeed, 0.05, 5)
+	-- Ground raycast: ensure movement stays flush with the floor (never floating in the air)
+	local rayOrigin = targetCF.Position + Vector3.new(0, 5, 0)
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterDescendantsInstances = { char }
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	local rayResult = Workspace:Raycast(rayOrigin, Vector3.new(0, -25, 0), raycastParams)
+	local targetPos = targetCF.Position
+	if rayResult and rayResult.Position then
+		targetPos = Vector3.new(targetPos.X, rayResult.Position.Y + 2.8, targetPos.Z)
+	end
+	local finalCF = CFrame.lookAt(targetPos, targetPos + targetCF.LookVector)
+
+	local moveSpeed = speed or (tonumber(CFG.tweenSpeed) or 26)
+	local duration = math.clamp(dist / moveSpeed, 0.08, 6)
 
 	local ti = TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-	activeTween = TweenService:Create(hrp, ti, { CFrame = targetCF })
+	activeTween = TweenService:Create(hrp, ti, { CFrame = finalCF })
 	activeTween:Play()
 
 	local completed = false
@@ -141,13 +152,14 @@ local function tweenTo(targetCF, speed)
 
 	local t0 = os.clock()
 	while not completed and (os.clock() - t0) < duration + 0.1 do
-		task.wait(0.03)
+		task.wait(0.04)
 		if not activeTween then break end
 	end
 	if conn then conn:Disconnect() end
 	activeTween = nil
 	return true
 end
+local tweenTo = groundTweenTo
 
 -- ═══ COMBAT & ENEMY HELPERS ═══
 local function getWeaponRemote()
@@ -226,12 +238,68 @@ local function getAllEnemies()
 	return list
 end
 
+local function getCurrentDungeonRoom()
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return nil end
+	local dungeon = Workspace:FindFirstChild("dungeon")
+	if not dungeon then return nil end
+
+	local bestRoom = nil
+	local minDist = 99999
+
+	for _, room in ipairs(dungeon:GetChildren()) do
+		local ef = room:FindFirstChild("enemyFolder")
+		if ef then
+			local hasAlive = false
+			for _, e in ipairs(ef:GetChildren()) do
+				local hum = e:FindFirstChildOfClass("Humanoid")
+				if hum and hum.Health > 0 then
+					hasAlive = true
+					break
+				end
+			end
+			if hasAlive then
+				local ref = room:FindFirstChild("startPart") or room:FindFirstChild("checkPoint") or room:FindFirstChildWhichIsA("BasePart")
+				if ref then
+					local d = (ref.Position - hrp.Position).Magnitude
+					if d < minDist then
+						minDist = d
+						bestRoom = room
+					end
+				end
+			end
+		end
+	end
+	return bestRoom
+end
+
 local function getNearestEnemy()
 	local enemies = getAllEnemies()
 	if #enemies == 0 then return nil end
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hrp then return enemies[1] end
+
+	-- Prioritize enemies in the current room first
+	local currentRoom = getCurrentDungeonRoom()
+	if currentRoom and currentRoom:FindFirstChild("enemyFolder") then
+		local roomEnemies = {}
+		for _, e in ipairs(enemies) do
+			if e.model:IsDescendantOf(currentRoom.enemyFolder) then
+				table.insert(roomEnemies, e)
+			end
+		end
+		if #roomEnemies > 0 then
+			table.sort(roomEnemies, function(a, b)
+				local distA = (a.rootPart.Position - hrp.Position).Magnitude
+				local distB = (b.rootPart.Position - hrp.Position).Magnitude
+				return distA < distB
+			end)
+			return roomEnemies[1]
+		end
+	end
+
 	table.sort(enemies, function(a, b)
 		if not a.rootPart or not b.rootPart then return false end
 		local distA = (a.rootPart.Position - hrp.Position).Magnitude
@@ -241,95 +309,74 @@ local function getNearestEnemy()
 	return enemies[1]
 end
 
-local function attackTarget(enemyData)
+local function approachTarget(enemyData)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if not char or not hrp or not enemyData or not enemyData.rootPart then return end
+	if not char or not hrp or not enemyData or not enemyData.rootPart then return false end
 
 	-- Peaceful check (town/lobby)
 	local peaceful = player:FindFirstChild("peaceful")
-	if peaceful and peaceful.Value == true then return end
+	if peaceful and peaceful.Value == true then return false end
 
 	local ePos = enemyData.rootPart.Position
 	local hoverHeight = tonumber(CFG.farmHoverHeight) or 4.5
 
-	-- Position player safely relative to enemy
-	if CFG.farmTeleport then
-		if (CFG.farmPositionMode or "behind") == "behind" then
-			-- GROUNDED BEHIND ENEMY (Safe from anti-cheat & out of enemy front melee cone)
-			local bv = hrp:FindFirstChild("HipHubFarmFly")
-			if bv then bv:Destroy() end
+	if (CFG.farmPositionMode or "behind") == "behind" then
+		-- GROUNDED BEHIND ENEMY (Safe from anti-cheat & out of enemy front melee cone)
+		local bv = hrp:FindFirstChild("HipHubFarmFly")
+		if bv then bv:Destroy() end
 
-			-- Keep collisions normal so player stays grounded
-			for _, p in ipairs(char:GetDescendants()) do
-				if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
-					p.CanCollide = true
-				end
-			end
-
-			-- Target: 2.2 studs behind enemy facing the enemy's back
-			local enemyCF = enemyData.rootPart.CFrame
-			local targetCF = enemyCF * CFrame.new(0, 0, 2.2)
-			local dist = (hrp.Position - targetCF.Position).Magnitude
-
-			if dist > 3.5 then
-				-- Smooth tween movement to enemy (human-like, no instant blink kick)
-				tweenTo(targetCF, tonumber(CFG.tweenSpeed) or 45)
-			else
-				-- Close enough: lock position smoothly
-				hrp.CFrame = targetCF
-				pcall(function() char:PivotTo(targetCF) end)
-				hrp.AssemblyLinearVelocity = Vector3.zero
-				hrp.AssemblyAngularVelocity = Vector3.zero
-			end
-		else
-			-- HOVER ABOVE (air)
-			for _, p in ipairs(char:GetDescendants()) do
-				if p:IsA("BasePart") and p.CanCollide then
-					p.CanCollide = false
-				end
-			end
-
-			local bv = hrp:FindFirstChild("HipHubFarmFly")
-			if not bv then
-				bv = Instance.new("BodyVelocity")
-				bv.Name = "HipHubFarmFly"
-				bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-				bv.Velocity = Vector3.zero
-				bv.Parent = hrp
-			end
-
-			local lookDir = enemyData.rootPart.CFrame.LookVector
-			local offset = -lookDir * 1.5 + Vector3.new(0, hoverHeight, 0)
-			local targetPos = ePos + offset
-			local targetCF = CFrame.lookAt(targetPos, ePos)
-			local dist = (hrp.Position - targetCF.Position).Magnitude
-
-			if dist > 3.5 then
-				tweenTo(targetCF, tonumber(CFG.tweenSpeed) or 45)
-			else
-				hrp.CFrame = targetCF
-				pcall(function() char:PivotTo(targetCF) end)
-				hrp.AssemblyLinearVelocity = Vector3.zero
-				hrp.AssemblyAngularVelocity = Vector3.zero
+		for _, p in ipairs(char:GetDescendants()) do
+			if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
+				p.CanCollide = true
 			end
 		end
-	end
 
-	-- Find weapon accessory (as in official UIS script)
+		local enemyCF = enemyData.rootPart.CFrame
+		local targetCF = enemyCF * CFrame.new(0, 0, 2.2)
+		groundTweenTo(targetCF, tonumber(CFG.tweenSpeed) or 26)
+	else
+		-- HOVER ABOVE (air)
+		for _, p in ipairs(char:GetDescendants()) do
+			if p:IsA("BasePart") and p.CanCollide then
+				p.CanCollide = false
+			end
+		end
+
+		local bv = hrp:FindFirstChild("HipHubFarmFly")
+		if not bv then
+			bv = Instance.new("BodyVelocity")
+			bv.Name = "HipHubFarmFly"
+			bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+			bv.Velocity = Vector3.zero
+			bv.Parent = hrp
+		end
+
+		local lookDir = enemyData.rootPart.CFrame.LookVector
+		local offset = -lookDir * 1.5 + Vector3.new(0, hoverHeight, 0)
+		local targetPos = ePos + offset
+		local targetCF = CFrame.lookAt(targetPos, ePos)
+		groundTweenTo(targetCF, tonumber(CFG.tweenSpeed) or 26)
+	end
+	return true
+end
+
+local function performAttack(enemyData)
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not char or not hrp or not enemyData or not enemyData.rootPart then return end
+
+	-- Face enemy horizontally without modifying position (prevents physics fight and snapback)
+	local ePos = enemyData.rootPart.Position
+	local lookPos = Vector3.new(ePos.X, hrp.Position.Y, ePos.Z)
+	hrp.CFrame = CFrame.lookAt(hrp.Position, lookPos)
+
+	-- Find weapon accessory
 	local wep = nil
 	for _, child in ipairs(char:GetChildren()) do
-		if child:IsA("Accessory") and child:FindFirstChild("Weapon") then
+		if (child:IsA("Accessory") and child:FindFirstChild("Weapon")) or child:IsA("Tool") then
 			wep = child
 			break
-		end
-	end
-	if not wep then
-		for _, child in ipairs(char:GetChildren()) do
-			if child:IsA("Tool") then
-				wep = child
-				break
-			end
 		end
 	end
 
@@ -362,6 +409,11 @@ local function attackTarget(enemyData)
 			end
 		end)
 	end
+end
+
+local function attackTarget(enemyData)
+	approachTarget(enemyData)
+	performAttack(enemyData)
 end
 
 -- ═══ DESIGN TOKENS ═══
